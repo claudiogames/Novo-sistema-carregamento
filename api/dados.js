@@ -18,10 +18,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Data obrigatória" });
     }
 
+    // Usando o nome correto da coluna visto na tabela: data_operacao
     const { data, error } = await supabase
       .from('controle_faltas_portao')
       .select('*')
-      .eq('data', dataParam);
+      .eq('data_operacao', dataParam);
 
     if (error) {
       console.error("Erro na consulta ao Supabase:", error.message);
