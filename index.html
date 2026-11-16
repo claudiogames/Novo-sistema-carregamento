@@ -1,654 +1,2089 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark h-full">
+<html lang="pt-BR" id="html-raiz" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de caixas Aproveitadas - Grendene</title>
-    <!-- Tailwind CSS -->
+    <title>Controle e Acompanhamento do Carregamento - Portão 1 CD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        github: {
-                            bg: '#0d1117',
-                            card: '#161b22',
-                            border: '#30363d',
-                            text: '#c9d1d9',
-                            muted: '#8b949e',
-                            accent: '#238636',
-                            accentHover: '#2ea043'
-                        }
-                    }
-                }
-            }
+            theme: { extend: { colors: { darkbg: '#0d1117', darkcard: '#161b22', darkborder: '#30363d' } } }
         }
     </script>
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Html5-Qrcode -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <!-- SheetJS (Exportação para Excel) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <style>
-        body { background-color: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 0.3s, color 0.3s; overflow-x: hidden; }
+
+        body.light { background-color: #f3f4f6; color: #1f2937; }
+        body.light .ui-card { background-color: #ffffff; border-color: #e5e7eb; color: #1f2937; }
+        body.light .excel-table th { background-color: #e5e7eb; color: #374151; border-color: #d1d5db; }
+        body.light .excel-table td { background-color: #ffffff; border-color: #d1d5db; color: #1f2937; }
+        body.light .excel-input, body.light .excel-select { color: #1f2937; }
+
+        body.dark { background-color: #0d1117; color: #c9d1d9; }
+        body.dark .ui-card { background-color: #161b22; border-color: #30363d; color: #c9d1d9; }
+        body.dark .excel-table th { background-color: #21262d; color: #8b949e; border-color: #30363d; }
+        body.dark .excel-table td { background-color: #161b22; border-color: #30363d; color: #c9d1d9; }
+        body.dark .excel-input, body.dark .excel-select { color: #c9d1d9; }
+
+        .excel-table { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: auto; }
+        .excel-table th { padding: 6px 4px; text-align: left; font-weight: 700; white-space: nowrap; }
+        .excel-table td { padding: 3px 2px; position: relative; vertical-align: middle; }
+
+        .excel-input {
+            width: 100%; border: none; outline: none; background: transparent;
+            font-size: 13px; font-family: monospace; padding: 4px; border-radius: 4px; box-sizing: border-box;
+        }
+
+        .excel-select {
+            width: 100% !important; min-width: 95px !important; border: none !important; outline: none !important;
+            font-size: 12px !important; padding: 3px 6px !important; border-radius: 4px !important; cursor: pointer !important;
+            box-sizing: border-box !important; font-weight: 700 !important; display: block !important;
+            height: 28px !important; line-height: 20px !important;
+        }
+
+        .td-sscc-container { position: relative; width: 190px; min-width: 185px; max-width: 220px; }
+        .excel-input-sscc { width: 100%; font-size: 12px; letter-spacing: -0.2px; transition: border-color 0.15s ease, background-color 0.15s ease; }
+        .excel-input-sscc:focus { border: 2px solid #2563eb !important; background-color: rgba(37, 99, 235, 0.05) !important; border-radius: 6px; }
+        body.dark .excel-input-sscc:focus { border: 2px solid #3b82f6 !important; background-color: rgba(59, 130, 246, 0.1) !important; }
+
+        @media (max-width: 768px) {
+            .excel-table thead { display: none; }
+            .excel-table, .excel-table tbody, .excel-table tr, .excel-table td { display: block; width: 100%; }
+            .excel-table tr { margin-bottom: 12px; border: 1px solid #30363d; border-radius: 8px; padding: 8px; background: inherit; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            .excel-table td { padding: 6px 0; border: none !important; display: flex; justify-content: space-between; align-items: center; }
+            .excel-table td::before { content: attr(data-label); font-weight: bold; font-size: 11px; text-transform: uppercase; opacity: 0.7; margin-right: 8px; }
+            .excel-table td:first-child { display: none; }
+            .excel-input { text-align: right; }
+            .excel-select { text-align: right !important; width: auto !important; min-width: 120px !important; }
+            .td-sscc-container { width: 100%; max-width: 100%; }
+        }
+
+        .status-pendente { background-color: #ef4444 !important; color: #ffffff !important; }
+        .status-em-andamento { background-color: #eab308 !important; color: #000000 !important; }
+        .status-apareceu-no-portao { background-color: #06b6d4 !important; color: #ffffff !important; }
+        .status-entregue-no-portao { background-color: #22c55e !important; color: #ffffff !important; }
+
+        .status-rasgada-pendente { background-color: #b91c1c !important; color: #ffffff !important; }
+        .status-rasgada-restaurada { background-color: #0369a1 !important; color: #ffffff !important; }
+        .status-rasgada-entregue { background-color: #15803d !important; color: #ffffff !important; }
+
+        .origem-fabrica { background-color: #dc2626 !important; color: #ffffff !important; font-weight: 800 !important; }
+        .origem-cd { background-color: transparent !important; }
+
+        .app-nao { background-color: #ef4444 !important; color: #ffffff !important; }
+        .app-sim { background-color: #22c55e !important; color: #ffffff !important; }
+
+        .requisitada-nao { background-color: #6b7280 !important; color: #ffffff !important; }
+        .requisitada-sim { background-color: #f97316 !important; color: #ffffff !important; }
+
+        .excel-select option { background-color: #ffffff; color: #1f2937; }
+        body.dark .excel-select option { background-color: #161b22; color: #c9d1d9; }
+
         .scanner-frame { position: relative; overflow: hidden; border-radius: 8px; border: 1px solid #30363d; }
+        .fade-in { animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        @keyframes flashRemoto { 0% { background-color: rgba(250, 204, 21, 0.55); } 100% { background-color: rgba(250, 204, 21, 0); } }
+        tr.flash-remoto td { animation: flashRemoto 1.6s ease-out; }
+
+        @keyframes caixaParadaAlerta {
+            0%, 100% { border-color: rgba(245, 158, 11, 1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            50% { border-color: rgba(239, 68, 68, 1); box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.25); }
+        }
+        tr.caixa-parada-alerta {
+            animation: caixaParadaAlerta 2s infinite ease-in-out;
+            background-color: rgba(245, 158, 11, 0.08) !important;
+        }
+
+        .bloco-alerta-30m { border-color: #f59e0b !important; background-color: rgba(245, 158, 11, 0.03) !important; }
+        .bloco-alerta-1h { border-color: #ef4444 !important; background-color: rgba(239, 68, 68, 0.05) !important; }
+
+        @keyframes blocoInterrompida {
+            0%, 100% { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+            50% { border-color: #f87171; box-shadow: 0 0 18px rgba(248, 113, 113, 0.6); }
+        }
+        .bloco-interrompida-maxima {
+            animation: blocoInterrompida 1.8s infinite ease-in-out !important;
+            border-width: 2px !important;
+            border-style: dashed !important;
+        }
+
+        .bloco-finalizado {
+            border-color: #22c55e !important;
+            background-color: rgba(34, 197, 94, 0.04) !important;
+            opacity: 0.9;
+        }
+
+        @keyframes truckDrive {
+            0% { transform: translateX(-120vw); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateX(120vw); opacity: 0; }
+        }
+        .animar-caminhao-doca {
+            animation: truckDrive 3.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        @keyframes caixaQuicando {
+            0% { transform: translateY(-120px) scale(0.9); opacity: 0; }
+            40% { transform: translateY(0px) scale(1, 0.85); opacity: 1; }
+            55% { transform: translateY(-35px) scale(1, 1); }
+            70% { transform: translateY(0px) scale(1, 0.92); }
+            85% { transform: translateY(-12px) scale(1, 1); }
+            100% { transform: translateY(0px) scale(1, 1); opacity: 1; }
+        }
+        @keyframes sombraQuique {
+            0% { transform: scale(0.3); opacity: 0; }
+            40% { transform: scale(1.2); opacity: 0.6; }
+            55% { transform: scale(0.7); opacity: 0.2; }
+            70% { transform: scale(1); opacity: 0.4; }
+            85% { transform: scale(0.85); opacity: 0.3; }
+            100% { transform: scale(1); opacity: 0.5; }
+        }
+        .animar-quique { animation: caixaQuicando 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        .animar-sombra { animation: sombraQuique 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
     </style>
 </head>
-<body class="min-h-full flex flex-col justify-between">
+<body class="light p-2 sm:p-3 pb-16">
 
-    <!-- CABEÇALHO -->
-    <header class="bg-github-card border-b border-github-border sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
-            <div class="flex items-center space-x-4">
-                <img src="https://logodownload.org/wp-content/uploads/2022/10/grendene-logo-0.png" alt="Grendene" class="h-7 w-auto object-contain bg-white p-1 rounded">
-                <div class="border-l border-github-border pl-4">
-                    <h1 class="text-base font-bold text-white leading-tight">Controle de caixas Aproveitadas</h1>
-                    <p class="text-xs font-semibold text-blue-400">Portão 1 CD</p>
-                    <p class="text-[11px] text-github-muted">Rastreio de ETQ Padrão e Exportação</p>
-                </div>
-            </div>
+    <div id="toast-container" class="fixed top-4 right-4 z-[999999] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
-            <button onclick="abrirModalRegistro()" class="bg-github-accent hover:bg-github-accentHover text-white px-3.5 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 border border-green-600 shadow-sm transition-colors cursor-pointer">
-                <i class="fa-solid fa-plus text-xs"></i>
-                <span>Registar ETQ</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- CONTEÚDO PRINCIPAL -->
-    <main class="max-w-7xl w-full mx-auto p-4 flex-grow">
-
-        <!-- PAINEL DE CONTROLE E BUSCA -->
-        <div class="bg-github-card border border-github-border rounded-lg p-4 mb-6 flex flex-col md:flex-row gap-3 justify-between items-center">
-            
-            <div class="relative w-full md:w-96">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-github-muted text-xs"></i>
-                <input type="text" id="campo-busca" oninput="filtrarTabelas()" placeholder="Buscar por código ETQ..." class="w-full pl-8 pr-3 py-1.5 bg-github-bg border border-github-border rounded-md text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
-            </div>
-
-            <div class="flex items-center gap-3 text-xs font-mono w-full md:w-auto justify-end flex-wrap">
-                <span class="bg-github-bg px-2.5 py-1 rounded border border-github-border">
-                    Total Padrão: <strong id="total-padrao" class="text-emerald-400">0</strong> (Hoje: <strong id="hoje-padrao" class="text-emerald-300">0</strong>)
-                </span>
-                <span class="bg-github-bg px-2.5 py-1 rounded border border-github-border">
-                    Total Exportação: <strong id="total-exportacao" class="text-blue-400">0</strong> (Hoje: <strong id="hoje-exportacao" class="text-blue-300">0</strong>)
-                </span>
-            </div>
-        </div>
-
-        <!-- GRID COM DUAS TABELAS SEPARADAS -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            <!-- TABELA 1: ETQ PADRÃO -->
-            <div class="bg-github-card border border-github-border rounded-lg overflow-hidden shadow-sm flex flex-col">
-                <div class="bg-emerald-950/40 border-b border-github-border px-4 py-2.5 flex justify-between items-center">
-                    <h2 class="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-barcode"></i> ETQ Padrão Aproveitadas
-                    </h2>
-                    <span id="badge-padrao" class="bg-emerald-900/60 text-emerald-200 border border-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-mono">0</span>
-                </div>
-                <div class="overflow-x-auto flex-grow">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-github-bg border-b border-github-border text-github-muted font-mono uppercase">
-                            <tr>
-                                <th class="p-3">Código ETQ</th>
-                                <th class="p-3">Local</th>
-                                <th class="p-3">Motivo</th>
-                                <th class="p-3">Data</th>
-                                <th class="p-3 text-right">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabela-padrao" class="divide-y divide-github-border">
-                            <!-- Preenchido via JS -->
-                        </tbody>
-                    </table>
-                </div>
-                <div id="vazio-padrao" class="p-6 text-center text-github-muted hidden">
-                    <p class="text-xs">Nenhum registo Padrão encontrado.</p>
-                </div>
-            </div>
-
-            <!-- TABELA 2: ETQ EXPORTAÇÃO -->
-            <div class="bg-github-card border border-github-border rounded-lg overflow-hidden shadow-sm flex flex-col">
-                <div class="bg-blue-950/40 border-b border-github-border px-4 py-2.5 flex justify-between items-center">
-                    <h2 class="text-xs font-bold text-blue-300 uppercase tracking-wider flex items-center gap-2">
-                        <i class="fa-solid fa-earth-americas"></i> ETQ Exportação Aproveitadas
-                    </h2>
-                    <span id="badge-exportacao" class="bg-blue-900/60 text-blue-200 border border-blue-800 text-[10px] px-2 py-0.5 rounded-full font-mono">0</span>
-                </div>
-                <div class="overflow-x-auto flex-grow">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-github-bg border-b border-github-border text-github-muted font-mono uppercase">
-                            <tr>
-                                <th class="p-3">Código ETQ</th>
-                                <th class="p-3">Local</th>
-                                <th class="p-3">Motivo</th>
-                                <th class="p-3">Data</th>
-                                <th class="p-3 text-right">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabela-exportacao" class="divide-y divide-github-border">
-                            <!-- Preenchido via JS -->
-                        </tbody>
-                    </table>
-                </div>
-                <div id="vazio-exportacao" class="p-6 text-center text-github-muted hidden">
-                    <p class="text-xs">Nenhum registo de Exportação encontrado.</p>
-                </div>
-            </div>
-
-        </div>
-    </main>
-
-    <!-- RODAPÉ FIXO -->
-    <footer class="bg-github-card border-t border-github-border mt-8 py-3 no-print">
-        <div class="max-w-7xl mx-auto px-4 flex justify-between items-center text-xs">
-            <span class="text-github-muted font-mono flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Supabase Conectado</span>
-            </span>
-            <button onclick="exportarExcel()" class="bg-github-bg hover:bg-gray-800 text-white px-3 py-1.5 rounded border border-github-border flex items-center gap-2 font-medium transition-colors cursor-pointer">
-                <i class="fa-solid fa-file-excel text-emerald-500"></i>
-                <span>Baixar Relatório (Excel)</span>
-            </button>
-        </div>
-    </footer>
-
-    <!-- MODAL DE REGISTRO RÁPIDO -->
-    <div id="modal-registro" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-github-card border border-github-border rounded-lg max-w-md w-full p-5 shadow-2xl">
-            
-            <div class="flex justify-between items-center pb-3 border-b border-github-border mb-4">
-                <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-barcode text-github-accent"></i> Registo de Caixa Aproveitada
-                </h3>
-                <button type="button" onclick="fecharModalRegistro()" class="text-github-muted hover:text-white p-1.5 rounded-md hover:bg-github-bg transition-colors cursor-pointer">
-                    <i class="fa-solid fa-xmark text-base"></i>
+    <!-- MENU CONTEXTUAL DE FIXAR PORTÃO (PRESSIONAR) -->
+    <div id="menu-contexto-portao" class="fixed inset-0 bg-black/40 hidden z-[999999] flex items-center justify-center p-4">
+        <div class="ui-card rounded-xl max-w-xs w-full p-4 shadow-2xl border text-center my-auto">
+            <h3 id="titulo-menu-portao" class="text-sm font-bold text-blue-500 mb-3">Portão X</h3>
+            <div class="space-y-2">
+                <button id="btn-acao-fixar" onclick="executarFixarMenu()" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs cursor-pointer shadow flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-thumbtack"></i> <span id="txt-acao-fixar">Fixar no Início</span>
                 </button>
+                <button onclick="fecharMenuContextoPortao()" class="w-full py-1.5 border rounded text-xs cursor-pointer opacity-75">Cancelar</button>
             </div>
-
-            <!-- MENSAGEM DE ALERTA -->
-            <div id="alerta-scanner" class="mb-3 hidden p-2 rounded text-xs font-semibold text-center transition-all"></div>
-
-            <form id="form-sscc" onsubmit="salvarRegistro(event)" class="space-y-3">
-                
-                <!-- TIPO DE ETQ -->
-                <div>
-                    <label class="block text-xs font-medium text-github-muted mb-1">Tipo de Registo:</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="border border-github-border bg-github-bg p-2 rounded flex items-center gap-2 cursor-pointer hover:border-emerald-500">
-                            <input type="radio" name="tipo_sscc" value="padrao" checked onchange="mudarTipoSSCC('padrao')" class="text-emerald-600 focus:ring-0">
-                            <span class="text-xs font-bold text-emerald-400">ETQ Padrão</span>
-                        </label>
-                        <label class="border border-github-border bg-github-bg p-2 rounded flex items-center gap-2 cursor-pointer hover:border-blue-500">
-                            <input type="radio" name="tipo_sscc" value="exportacao" onchange="mudarTipoSSCC('exportacao')" class="text-blue-600 focus:ring-0">
-                            <span class="text-xs font-bold text-blue-400">ETQ Exportação</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- SCANNER -->
-                <div id="container-scanner" class="mb-2">
-                    <div id="reader" class="scanner-frame bg-black w-full min-h-[140px]"></div>
-                </div>
-
-                <!-- CAMPO CÓDIGO ETQ -->
-                <div>
-                    <label id="label-codigo-sscc" class="block text-xs font-medium text-github-muted mb-1">Código ETQ Padrão:</label>
-                    <input type="text" id="input-sscc" placeholder="Bipe ou digite o código..." autocomplete="off" class="w-full bg-github-bg border border-github-border rounded-md px-3 py-2 text-xs font-mono text-emerald-400 focus:outline-none focus:border-emerald-500">
-                </div>
-
-                <!-- LOCALIZAÇÃO -->
-                <div>
-                    <label class="block text-xs font-medium text-github-muted mb-1">Localização:</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="border border-github-border bg-github-bg p-2 rounded flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="localizacao" value="Porta Pallet" checked class="text-blue-600 focus:ring-0">
-                            <span class="text-xs font-medium text-white">Porta Pallet</span>
-                        </label>
-                        <label class="border border-github-border bg-github-bg p-2 rounded flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="localizacao" value="Sorter" class="text-blue-600 focus:ring-0">
-                            <span class="text-xs font-medium text-white">Sorter</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- MOTIVO -->
-                <div>
-                    <label class="block text-xs font-medium text-github-muted mb-1">Motivo do Aproveitamento:</label>
-                    <select id="select-motivo" class="w-full bg-github-bg border border-github-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-                        <option value="Faltas sem saldo pra requisitar">Faltas sem saldo pra requisitar</option>
-                        <option value="Ordem com muito tempo de permanência">Ordem com muito tempo de permanência</option>
-                        <option value="Outros">Outros</option>
-                    </select>
-                </div>
-
-                <!-- BOTÕES DE AÇÃO -->
-                <div class="flex justify-end gap-2 pt-3 border-t border-github-border">
-                    <button type="button" onclick="fecharModalRegistro()" class="px-3 py-1.5 border border-github-border bg-github-bg text-github-muted hover:text-white rounded-md text-xs transition-colors cursor-pointer">Fechar</button>
-                    <button type="submit" id="btn-submit" class="bg-github-accent hover:bg-github-accentHover text-white px-4 py-1.5 rounded-md text-xs font-bold shadow-sm cursor-pointer">Salvar Registo</button>
-                </div>
-            </form>
         </div>
     </div>
 
-    <!-- LÓGICA DO SISTEMA -->
+    <!-- MODAL DETALHES DE TEMPO DA SSCC -->
+    <div id="modal-tempo-sscc" class="fixed inset-0 bg-black/60 hidden z-[999999] flex items-center justify-center p-4">
+        <div class="ui-card rounded-xl max-w-sm w-full p-5 shadow-2xl border border-blue-500 my-auto">
+            <div class="flex justify-between items-center pb-2 border-b mb-3">
+                <h3 class="text-xs font-bold text-blue-500 flex items-center gap-1.5 uppercase"><i class="fa-solid fa-clock"></i> Detalhes de Tempo (SSCC)</h3>
+                <button onclick="fecharModalTempoSSCC()" class="opacity-70 hover:opacity-100 cursor-pointer"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <span class="opacity-75 block text-[10px] uppercase font-bold">Código SSCC</span>
+                    <span id="detalhe-tempo-sscc" class="font-mono font-bold text-sm">0047...</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-zinc-900 p-2.5 rounded-lg border">
+                    <div>
+                        <span class="opacity-75 block text-[10px]">Criado / Adicionado</span>
+                        <span id="detalhe-tempo-criacao" class="font-mono font-bold">-</span>
+                    </div>
+                    <div>
+                        <span class="opacity-75 block text-[10px]">Tempo Ativo</span>
+                        <span id="detalhe-tempo-decorrido" class="font-mono font-bold text-blue-600">-</span>
+                    </div>
+                </div>
+                <div>
+                    <span class="opacity-75 block text-[10px]">Status da Requisição</span>
+                    <span id="detalhe-tempo-requisicao" class="font-bold">-</span>
+                </div>
+                <button onclick="fecharModalTempoSSCC()" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs cursor-pointer shadow">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="truck-animation-overlay" class="fixed inset-0 pointer-events-none z-[9999999] hidden flex items-center justify-center overflow-hidden bg-black/40 backdrop-blur-[2px]">
+        <div class="absolute flex flex-col items-center animar-caminhao-doca">
+            <div class="bg-emerald-600 text-white px-8 py-4 rounded-2xl shadow-2xl font-black text-xl uppercase tracking-wider flex items-center gap-4 border-2 border-emerald-300">
+                <i class="fa-solid fa-truck-moving text-3xl animate-bounce"></i>
+                <div class="flex flex-col">
+                    <span id="truck-overlay-title">Ordem Finalizada!</span>
+                    <span id="truck-overlay-subtitle" class="text-xs font-mono font-normal opacity-90">Caminhão liberado e saindo da doca 🚚💨</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SPLASH -->
+    <div id="splash-screen" class="fixed inset-0 bg-[#0d1117] z-[99999] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="relative flex flex-col items-center">
+            <div class="w-24 h-24 rounded-2xl bg-blue-600/15 border border-blue-500/40 flex items-center justify-center p-3 shadow-2xl animar-quique">
+                <img src="https://pub-f46b0cda8b8d434aabcf14ccac85f3af.r2.dev/1791682069820.png" alt="Caixa Grendene" class="w-full h-full object-contain drop-shadow-[0_8px_10px_rgba(0,0,0,0.6)]">
+            </div>
+            <div class="w-16 h-2 bg-blue-500/50 rounded-full blur-[2px] mt-4 animar-sombra"></div>
+            <h1 class="text-white text-base font-extrabold tracking-wider uppercase mt-5 flex items-center gap-2 opacity-0 animate-[fadeIn_0.3s_ease_0.6s_forwards]">
+                <span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span> Portão 1 CD
+            </h1>
+        </div>
+    </div>
     <script>
-        const SUPABASE_URL = 'https://mdrhviciouopctcbpotr.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_Zs7XKc999RsKCgqRFBPigQ__aYnbqGq';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        let dadosPadrao = [];
-        let dadosExportacao = [];
-        let html5QrcodeScanner = null;
-        let ultimoCodigoLido = "";
-        let tempoUltimaLeitura = 0;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            carregarDados();
-            inscreverRealtime();
-        });
-
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') fecharModalRegistro();
-        });
-
-        document.getElementById('modal-registro').addEventListener('click', (e) => {
-            if (e.target.id === 'modal-registro') fecharModalRegistro();
-        });
-
-        function mudarTipoSSCC(tipo) {
-            const input = document.getElementById('input-sscc');
-            const label = document.getElementById('label-codigo-sscc');
-            if (tipo === 'padrao') {
-                label.innerText = "Código ETQ Padrão:";
-                input.className = "w-full bg-github-bg border border-github-border rounded-md px-3 py-2 text-xs font-mono text-emerald-400 focus:outline-none focus:border-emerald-500";
-            } else {
-                label.innerText = "Código ETQ Exportação:";
-                input.className = "w-full bg-github-bg border border-github-border rounded-md px-3 py-2 text-xs font-mono text-blue-400 focus:outline-none focus:border-blue-500";
-            }
-            input.focus();
-        }
-
-        function tratarCodigoSSCC(codigo) {
-            if (!codigo) return '';
-            let limpo = codigo.trim();
-            limpo = limpo.replace(/^\][A-Za-z]\d+/, '');
-            limpo = limpo.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
-            return limpo.trim();
-        }
-
-        function tocarBipAlegre() {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const now = audioCtx.currentTime;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(523.25, now);       
-                osc.frequency.setValueAtTime(659.25, now + 0.08); 
-                osc.frequency.setValueAtTime(783.99, now + 0.16); 
-                osc.frequency.setValueAtTime(1046.50, now + 0.24); 
-
-                gain.gain.setValueAtTime(0.12, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-
-                osc.start(now);
-                osc.stop(now + 0.4);
-            } catch (e) {}
-        }
-
-        function tocarSomErro() {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const now = audioCtx.currentTime;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(200, now);
-                osc.frequency.setValueAtTime(150, now + 0.15);
-
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-
-                osc.start(now);
-                osc.stop(now + 0.3);
-            } catch (e) {}
-        }
-
-        function mostrarAviso(mensagem, tipo = 'sucesso') {
-            const alertaEl = document.getElementById('alerta-scanner');
-            alertaEl.innerText = mensagem;
-            alertaEl.className = `mb-3 p-2 rounded text-xs font-semibold text-center transition-all ${
-                tipo === 'sucesso' 
-                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' 
-                : 'bg-amber-950 text-amber-300 border border-amber-800'
-            }`;
-            alertaEl.classList.remove('hidden');
-            setTimeout(() => { alertaEl.classList.add('hidden'); }, 3000);
-        }
-
-        function inscreverRealtime() {
-            supabaseClient
-                .channel('mudancas_geral')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'caixas_padrao' }, () => carregarDados())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'caixas_exportacao' }, () => carregarDados())
-                .subscribe();
-        }
-
-        async function carregarDados() {
-            const resPadrao = await supabaseClient.from('caixas_padrao').select('*').order('created_at', { ascending: false });
-            const resExp = await supabaseClient.from('caixas_exportacao').select('*').order('created_at', { ascending: false });
-
-            dadosPadrao = (resPadrao.data || []).map(item => ({
-                id: item.id,
-                sscc: item.sscc,
-                localizacao: item.localizazione,
-                motivo: item.motivo,
-                dataRegistro: item.data_registro,
-                createdAt: item.created_at
-            }));
-
-            dadosExportacao = (resExp.data || []).map(item => ({
-                id: item.id,
-                sscc: item.sscc_exportacao,
-                localizacao: item.localizazione,
-                motivo: item.motivo,
-                dataRegistro: item.data_registro,
-                createdAt: item.created_at
-            }));
-
-            renderizarTabelas();
-        }
-
-        async function salvarRegistro(e) {
-            e.preventDefault(); // Impede o recarregamento nativo da página
-            
-            const tipo = document.querySelector('input[name="tipo_sscc"]:checked').value;
-            const inputSscc = document.getElementById('input-sscc');
-            const localizacao = document.querySelector('input[name="localizacao"]:checked').value;
-            const motivo = document.getElementById('select-motivo').value;
-
-            let codigoVal = tratarCodigoSSCC(inputSscc.value);
-            if (!codigoVal) {
-                alert("Insira ou bipe o código ETQ!");
-                inputSscc.focus();
-                return;
-            }
-
-            const jaExistePadrao = dadosPadrao.some(r => r.sscc === codigoVal);
-            const jaExisteExp = dadosExportacao.some(r => r.sscc === codigoVal);
-
-            if (jaExistePadrao || jaExisteExp) {
-                tocarSomErro();
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                mostrarAviso(`⚠️ O código ETQ ${codigoVal} já se encontra registado no sistema!`, 'erro');
-                return;
-            }
-
-            const hojeStr = new Date().toISOString().split('T')[0];
-            let error = null;
-
-            if (tipo === 'padrao') {
-                const res = await supabaseClient.from('caixas_padrao').insert([{
-                    sscc: codigoVal,
-                    localizazione: localizacao,
-                    motivo: motivo,
-                    data_registro: hojeStr
-                }]);
-                error = res.error;
-            } else {
-                const res = await supabaseClient.from('caixas_exportacao').insert([{
-                    sscc_exportacao: codigoVal,
-                    localizazione: localizacao,
-                    motivo: motivo,
-                    data_registro: hojeStr
-                }]);
-                error = res.error;
-            }
-
-            if (error) {
-                if (error.code === '23505') {
-                    tocarSomErro();
-                    mostrarAviso("⚠️ Este código já existe na base de dados!", "erro");
-                } else {
-                    alert("Erro ao gravar: " + error.message);
-                }
-                return;
-            }
-
-            tocarBipAlegre();
-            if (navigator.vibrate) navigator.vibrate(200);
-            mostrarAviso("✓ Caixa aproveitada registada com sucesso!", "sucesso");
-
-            inputSscc.value = '';
-            inputSscc.focus();
-            carregarDados();
-        }
-
-        async function deletarRegistro(tipo, id) {
-            if (confirm("Deseja remover este registo?")) {
-                const tabela = tipo === 'padrao' ? 'caixas_padrao' : 'caixas_exportacao';
-                const { error } = await supabaseClient.from(tabela).delete().eq('id', id);
-
-                if (error) {
-                    alert("Erro ao remover registo.");
-                    return;
-                }
-                carregarDados();
-            }
-        }
-
-        function renderizarTabelas() {
-            const hojeStr = new Date().toISOString().split('T')[0];
-
-            const tbodyPadrao = document.getElementById('tabela-padrao');
-            const vazioPadrao = document.getElementById('vazio-padrao');
-            tbodyPadrao.innerHTML = '';
-
-            let hojePadraoCount = 0;
-
-            if (dadosPadrao.length === 0) {
-                vazioPadrao.classList.remove('hidden');
-            } else {
-                vazioPadrao.classList.add('hidden');
-                dadosPadrao.forEach(r => {
-                    if (r.dataRegistro === hojeStr) hojePadraoCount++;
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-github-bg/50 transition-colors";
-                    tr.innerHTML = `
-                        <td class="p-3 font-mono font-bold text-emerald-400"><i class="fa-solid fa-barcode mr-1"></i> ${r.sscc}</td>
-                        <td class="p-3 text-gray-300 font-sans">${r.localizacao}</td>
-                        <td class="p-3 text-github-muted font-sans" title="${r.motivo}">${r.motivo}</td>
-                        <td class="p-3 text-github-muted font-mono">${r.dataRegistro || '-'}</td>
-                        <td class="p-3 text-right">
-                            <button onclick="deletarRegistro('padrao', '${r.id}')" class="text-github-muted hover:text-red-400 px-2 py-1 transition-colors cursor-pointer" title="Remover">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
-                    tbodyPadrao.appendChild(tr);
-                });
-            }
-
-            const tbodyExp = document.getElementById('tabela-exportacao');
-            const vazioExp = document.getElementById('vazio-exportacao');
-            tbodyExp.innerHTML = '';
-
-            let hojeExpCount = 0;
-
-            if (dadosExportacao.length === 0) {
-                vazioExp.classList.remove('hidden');
-            } else {
-                vazioExp.classList.add('hidden');
-                dadosExportacao.forEach(r => {
-                    if (r.dataRegistro === hojeStr) hojeExpCount++;
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-github-bg/50 transition-colors";
-                    tr.innerHTML = `
-                        <td class="p-3 font-mono font-bold text-blue-400"><i class="fa-solid fa-earth-americas mr-1"></i> ${r.sscc}</td>
-                        <td class="p-3 text-gray-300 font-sans">${r.localizacao}</td>
-                        <td class="p-3 text-github-muted font-sans" title="${r.motivo}">${r.motivo}</td>
-                        <td class="p-3 text-github-muted font-mono">${r.dataRegistro || '-'}</td>
-                        <td class="p-3 text-right">
-                            <button onclick="deletarRegistro('exportacao', '${r.id}')" class="text-github-muted hover:text-red-400 px-2 py-1 transition-colors cursor-pointer" title="Remover">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
-                    tbodyExp.appendChild(tr);
-                });
-            }
-
-            document.getElementById('total-padrao').innerText = dadosPadrao.length;
-            document.getElementById('hoje-padrao').innerText = hojePadraoCount;
-            document.getElementById('total-exportacao').innerText = dadosExportacao.length;
-            document.getElementById('hoje-exportacao').innerText = hojeExpCount;
-
-            document.getElementById('badge-padrao').innerText = dadosPadrao.length;
-            document.getElementById('badge-exportacao').innerText = dadosExportacao.length;
-        }
-
-        function filtrarTabelas() {
-            const termo = document.getElementById('campo-busca').value.toLowerCase();
-            if (!termo) {
-                renderizarTabelas();
-                return;
-            }
-
-            const filtradosPadrao = dadosPadrao.filter(r => r.sscc.toLowerCase().includes(termo));
-            const filtradosExp = dadosExportacao.filter(r => r.sscc.toLowerCase().includes(termo));
-
-            const tbodyPadrao = document.getElementById('tabela-padrao');
-            tbodyPadrao.innerHTML = '';
-            filtradosPadrao.forEach(r => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-github-bg/50 transition-colors";
-                tr.innerHTML = `
-                    <td class="p-3 font-mono font-bold text-emerald-400">${r.sscc}</td>
-                    <td class="p-3 text-gray-300">${r.localizacao}</td>
-                    <td class="p-3 text-github-muted">${r.motivo}</td>
-                    <td class="p-3 text-github-muted font-mono">${r.dataRegistro || '-'}</td>
-                    <td class="p-3 text-right"><button onclick="deletarRegistro('padrao', '${r.id}')" class="text-github-muted hover:text-red-400"><i class="fa-solid fa-trash"></i></button></td>
-                `;
-                tbodyPadrao.appendChild(tr);
-            });
-
-            const tbodyExp = document.getElementById('tabela-exportacao');
-            tbodyExp.innerHTML = '';
-            filtradosExp.forEach(r => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-github-bg/50 transition-colors";
-                tr.innerHTML = `
-                    <td class="p-3 font-mono font-bold text-blue-400">${r.sscc}</td>
-                    <td class="p-3 text-gray-300">${r.localizacao}</td>
-                    <td class="p-3 text-github-muted">${r.motivo}</td>
-                    <td class="p-3 text-github-muted font-mono">${r.dataRegistro || '-'}</td>
-                    <td class="p-3 text-right"><button onclick="deletarRegistro('exportacao', '${r.id}')" class="text-github-muted hover:text-red-400"><i class="fa-solid fa-trash"></i></button></td>
-                `;
-                tbodyExp.appendChild(tr);
-            });
-        }
-
-        async function iniciarScanner() {
-            if (!html5QrcodeScanner) {
-                html5QrcodeScanner = new Html5Qrcode("reader");
-            }
-
-            try {
-                await html5QrcodeScanner.start(
-                    { facingMode: "environment" },
-                    { fps: 30, qrbox: { width: 230, height: 130 } },
-                    (decodedText) => {
-                        const codigoTratado = tratarCodigoSSCC(decodedText);
-                        const agora = Date.now();
-
-                        if (codigoTratado.length >= 10) {
-                            if (codigoTratado !== ultimoCodigoLido || (agora - tempoUltimaLeitura > 2500)) {
-                                ultimoCodigoLido = codigoTratado;
-                                tempoUltimaLeitura = agora;
-
-                                document.getElementById('input-sscc').value = codigoTratado;
-                                tocarBipAlegre();
-                                if (navigator.vibrate) navigator.vibrate(100);
-                            }
-                        }
-                    },
-                    () => {}
-                );
-            } catch (err) {
-                console.log("Câmera já ativa ou erro ao iniciar.");
-            }
-        }
-
-        function pararScanner() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().catch(() => {});
-            }
-        }
-
-        function exportarExcel() {
-            if (dadosPadrao.length === 0 && dadosExportacao.length === 0) {
-                alert("Não há dados para exportar.");
-                return;
-            }
-
-            const workbook = XLSX.utils.book_new();
-
-            if (dadosPadrao.length > 0) {
-                const excelPadrao = dadosPadrao.map(r => ({
-                    "ETQ Padrão": r.sscc,
-                    "Localização": r.localizacao,
-                    "Motivo": r.motivo,
-                    "Data do Registo": r.dataRegistro
-                }));
-                const wsPadrao = XLSX.utils.json_to_sheet(excelPadrao);
-                XLSX.utils.book_append_sheet(workbook, wsPadrao, "ETQ Padrão");
-            }
-
-            if (dadosExportacao.length > 0) {
-                const excelExp = dadosExportacao.map(r => ({
-                    "ETQ Exportação": r.sscc,
-                    "Localização": r.localizacao,
-                    "Motivo": r.motivo,
-                    "Data do Registo": r.dataRegistro
-                }));
-                const wsExp = XLSX.utils.json_to_sheet(excelExp);
-                XLSX.utils.book_append_sheet(workbook, wsExp, "ETQ Exportação");
-            }
-
-            const dataHoje = new Date().toISOString().split('T')[0];
-            XLSX.writeFile(workbook, `Controle_Caixas_Aproveitadas_Portao1CD_${dataHoje}.xlsx`);
-        }
-
-        function abrirModalRegistro() {
-            document.getElementById('form-sscc').reset();
-            mudarTipoSSCC('padrao');
-            document.getElementById('modal-registro').classList.remove('hidden');
+        window.addEventListener('load', () => {
             setTimeout(() => {
-                iniciarScanner();
-                document.getElementById('input-sscc').focus();
-            }, 100);
+                const splash = document.getElementById('splash-screen');
+                if (splash) { splash.style.opacity = '0'; setTimeout(() => splash.remove(), 500); }
+            }, 1400);
+        });
+    </script>
+
+    <!-- MODAL COLAGEM EM LOTE -->
+    <div id="modal-colagem-lote" class="fixed inset-0 bg-black/70 hidden z-[99999] flex items-center justify-center p-4">
+        <div class="ui-card rounded-xl max-w-lg w-full p-5 shadow-2xl border border-blue-500 my-auto">
+            <div class="flex justify-between items-center pb-2 border-b mb-4">
+                <h3 class="text-sm font-bold text-blue-500 flex items-center gap-1.5"><i class="fa-solid fa-paste"></i> Colar Lote de SSCCs do SIAG (<span id="titulo-modal-lote-ordem" class="font-mono">Ordem</span>)</h3>
+                <button onclick="fecharModalColagemLote()" class="opacity-70 hover:opacity-100 cursor-pointer"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <p class="opacity-75">Cole abaixo o texto copiado do SIAG. O sistema identificará automaticamente os códigos, fará a análise e adicionará as novas faltas.</p>
+                <div>
+                    <textarea id="textarea-lote-sscc" rows="8" placeholder="Cole aqui o texto copiado do SIAG..." class="w-full ui-card border rounded p-2.5 font-mono text-xs focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button onclick="fecharModalColagemLote()" class="px-3 py-1.5 border rounded cursor-pointer opacity-75">Cancelar</button>
+                    <button onclick="processarColagemLote()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded cursor-pointer shadow">Processar e Analisar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ALERTA DE LOCALIZAÇÃO -->
+    <div id="modal-alerta-integracao" class="fixed inset-0 bg-black/80 hidden z-[999999] flex items-center justify-center p-4">
+        <div class="ui-card rounded-xl max-w-sm w-full p-5 text-center shadow-2xl border border-amber-500 my-auto">
+            <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl animate-bounce">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h2 class="text-sm font-bold mb-1 text-amber-500 uppercase">LOCALIZAÇÃO</h2>
+            <p id="texto-alerta-integracao" class="text-xs opacity-90 mb-5 font-mono break-words">A caixa informada foi localizada...</p>
+            <button onclick="fecharAlertaIntegracao()" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs cursor-pointer shadow">Entendido / Fechar</button>
+        </div>
+    </div>
+
+    <!-- MODAL NOVA ORDEM -->
+    <div id="modal-nova-ordem" class="fixed inset-0 bg-black/70 hidden z-50 flex items-center justify-center p-4">
+        <div class="ui-card rounded-xl max-w-sm w-full p-5 shadow-2xl border my-auto">
+            <div class="flex justify-between items-center pb-2 border-b mb-4">
+                <h3 class="text-xs font-bold text-blue-500 flex items-center gap-1.5 uppercase"><i class="fa-solid fa-layer-group"></i> Adicionar Nova Ordem</h3>
+                <button onclick="fecharModalNovaOrdem()" class="opacity-70 hover:opacity-100 cursor-pointer"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block opacity-75 mb-1 font-bold">Número da Ordem</label>
+                    <input type="text" id="input-modal-num-ordem" placeholder="Ex: 12345..." class="w-full ui-card border rounded p-2 font-mono font-bold">
+                </div>
+                <div>
+                    <label class="block opacity-75 mb-1 font-bold">Cor da Ordem</label>
+                    <select id="select-modal-cor-ordem" class="w-full ui-card border rounded p-2 font-bold cursor-pointer text-sm">
+                        <option value="azul">🔵 Azul</option>
+                        <option value="amarelo">🟡 Amarelo</option>
+                        <option value="vermelho">🔴 Vermelho</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t mt-3">
+                    <button onclick="fecharModalNovaOrdem()" class="px-3 py-1.5 border rounded cursor-pointer opacity-75">Cancelar</button>
+                    <button onclick="confirmarAdicionarNovaOrdem()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded cursor-pointer shadow">Criar Ordem</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SCANNER -->
+    <div id="modal-scanner" class="fixed inset-0 bg-black/90 hidden z-[99999] flex items-center justify-center p-4">
+        <div class="ui-card border rounded-lg max-w-md w-full p-5 shadow-2xl">
+            <div class="flex justify-between items-center pb-3 border-b mb-4">
+                <h3 class="text-sm font-bold flex items-center gap-2 text-amber-500"><i class="fa-solid fa-barcode"></i> Leitor de SSCC (Caixa Rasgada)</h3>
+                <button type="button" onclick="fecharModalScanner()" class="opacity-70 hover:opacity-100 p-1 cursor-pointer"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <div class="mb-4"><div id="reader" class="scanner-frame bg-black w-full min-h-[220px]"></div></div>
+            <p class="text-[11px] opacity-75 text-center mb-3">Aponte a câmara para o código da caixa rasgada.</p>
+            <div class="flex justify-end pt-2 border-t">
+                <button type="button" onclick="fecharModalScanner()" class="px-3 py-1.5 border rounded text-xs cursor-pointer">Concluir / Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL REGISTRO RASGADA -->
+    <div id="modal-rasgada" class="fixed inset-0 bg-black/60 hidden z-40 flex items-center justify-center p-4">
+        <div class="ui-card rounded-lg max-w-md w-full p-5 shadow-xl border">
+            <div class="flex justify-between items-center pb-2 border-b mb-3">
+                <h3 class="text-xs font-bold text-amber-500 flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation"></i> Registar Caixa Rasgada</h3>
+                <button onclick="fecharModalRasgada()" class="opacity-70 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block opacity-75 mb-1">Selecione o Portão</label>
+                    <select id="rasgada-portao" onchange="popularOrdensModalRasgada()" class="w-full ui-card border rounded p-2 font-mono"></select>
+                </div>
+                <div>
+                    <label class="block opacity-75 mb-1">Ordem a que a caixa pertence</label>
+                    <select id="rasgada-ordem" class="w-full ui-card border rounded p-2 font-mono font-bold"></select>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="opacity-75">Código SSCC</label>
+                        <button type="button" onclick="abrirModalScannerParaCampo('rasgada-sscc')" class="text-amber-500 hover:underline flex items-center gap-1 cursor-pointer font-bold"><i class="fa-solid fa-camera"></i> Bipar com Câmera</button>
+                    </div>
+                    <input type="text" id="rasgada-sscc" placeholder="Bipe ou digite o SSCC..." class="w-full ui-card border rounded p-2 font-mono font-bold">
+                </div>
+                <div>
+                    <label class="block opacity-75 mb-1">Tipo</label>
+                    <select id="rasgada-tipo" class="w-full ui-card border rounded p-2 font-medium">
+                        <option value="Lida">Rasgada LIDA (Alerta Vermelho)</option>
+                        <option value="Nao Lida">Rasgada NÃO LIDA</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block opacity-75 mb-1">Observação</label>
+                    <input type="text" id="rasgada-obs" placeholder="Ex: Rasgada na conferência..." class="w-full ui-card border rounded p-2">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button onclick="fecharModalRasgada()" class="px-3 py-1.5 border rounded opacity-75">Cancelar</button>
+                    <button onclick="salvarCaixaRasgada()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold">Registar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CABEÇALHO -->
+    <header class="ui-card p-3 sm:p-4 rounded-xl shadow-sm border mb-3 flex flex-col xl:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-3 w-full xl:w-auto justify-center sm:justify-start">
+            <div class="bg-white p-1.5 rounded-lg border border-gray-200 flex items-center justify-center min-w-[110px]">
+                <img src="https://sindcalf.org.br/wp-content/uploads/2017/06/grendene.jpg" alt="Grendene" class="h-7 w-auto object-contain">
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-sm sm:text-base font-extrabold tracking-tight">Controle de Carregamento</h1>
+                    <span class="hidden sm:inline-block bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-mono font-bold">Portão 1 CD</span>
+                </div>
+                <p class="text-[11px] opacity-75 flex items-center gap-2">
+                    <span>Gestão Operacional &bull; Faltas e Ocorrências</span>
+                    <span id="status-conexao" class="inline-flex items-center gap-1 font-bold text-amber-500"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> Conectando…</span>
+                    <span id="status-pendentes" class="hidden font-mono text-amber-500"></span>
+                </p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full xl:w-auto justify-center xl:justify-end">
+            <div class="flex items-center gap-1 ui-card border rounded-lg px-2 py-1 text-xs shadow-sm">
+                <i class="fa-solid fa-calendar-days text-blue-500"></i>
+                <input type="date" id="input-data-controle" onchange="mudarDataOperacional(this.value)" class="bg-transparent outline-none font-medium cursor-pointer text-xs">
+            </div>
+            <div class="flex items-center gap-1 ui-card border rounded-lg px-2 py-1 text-xs shadow-sm">
+                <i class="fa-solid fa-user-tie text-blue-500"></i>
+                <select id="select-responsavel" onchange="mudarResponsavel(this.value)" class="bg-transparent outline-none font-medium cursor-pointer text-xs">
+                    <option value="" disabled selected>Responsável</option>
+                    <option value="Aldo">Supervisor Aldo</option>
+                    <option value="Elisson">Supervisor Elisson</option>
+                    <option value="Jonathan Carlos">Líder Jonathan</option>
+                    <option value="Cláudio Sousa">Cláudio Sousa</option>
+                    <option value="Yens Farrapo">Yens Farrapo</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-1 ui-card border rounded-lg px-2 py-1 text-xs shadow-sm">
+                <i class="fa-solid fa-clock text-blue-500"></i>
+                <select id="select-turno" onchange="mudarTurno(this.value)" class="bg-transparent outline-none font-medium cursor-pointer text-xs">
+                    <option value="Turno 1">T1</option>
+                    <option value="Turno 2">T2</option>
+                    <option value="Turno 3">T3</option>
+                    <option value="Comercial">Com.</option>
+                </select>
+            </div>
+            <button onclick="alternarTema()" class="ui-card border p-2 rounded-lg text-xs cursor-pointer shadow-sm"><i id="icone-tema" class="fa-solid fa-moon"></i></button>
+            <button onclick="abrirModalRasgada()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold shadow-sm flex items-center gap-1 cursor-pointer"><i class="fa-solid fa-triangle-exclamation"></i> Rasgada</button>
+            <button onclick="abrirModalNovaOrdem()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold shadow-sm flex items-center gap-1 cursor-pointer"><i class="fa-solid fa-layer-group"></i> + Nova Ordem</button>
+            <button onclick="exportarExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold shadow-sm flex items-center gap-1 cursor-pointer"><i class="fa-solid fa-file-excel"></i> Excel</button>
+        </div>
+    </header>
+
+    <!-- AVISOS DO SISTEMA -->
+    <div id="aviso-sistema" class="hidden mb-3 p-2.5 rounded-lg text-xs font-bold border"></div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 sm:grid-cols-7 gap-2 mb-3">
+        <div class="ui-card border p-2 rounded-lg shadow-sm">
+            <span class="text-[9px] font-bold opacity-75 uppercase block">Total Faltas</span>
+            <div class="text-base sm:text-lg font-black font-mono" id="kpi-total-faltas">0</div>
+        </div>
+        <div class="ui-card border p-2 rounded-lg shadow-sm">
+            <span class="text-[9px] font-bold text-emerald-600 uppercase block">Concluídas</span>
+            <div class="text-base sm:text-lg font-black font-mono text-emerald-600" id="kpi-entregues">0</div>
+        </div>
+        <div class="ui-card border p-2 rounded-lg shadow-sm">
+            <span class="text-[9px] font-bold text-red-500 uppercase block">Pendentes</span>
+            <div class="text-base sm:text-lg font-black font-mono text-red-500" id="kpi-pendentes">0</div>
+        </div>
+        <div class="ui-card border p-2 rounded-lg shadow-sm">
+            <span class="text-[9px] font-bold text-purple-600 dark:text-purple-400 uppercase block">Pend. Fábrica</span>
+            <div class="text-base sm:text-lg font-black font-mono text-purple-600 dark:text-purple-400" id="kpi-pend-fabrica">0</div>
+        </div>
+        <div class="ui-card border p-2 rounded-lg shadow-sm">
+            <span class="text-[9px] font-bold text-orange-500 uppercase block">Requisitadas</span>
+            <div class="text-base sm:text-lg font-black font-mono text-orange-500" id="kpi-requisitadas">0</div>
+        </div>
+        <div class="ui-card border p-2 rounded-lg shadow-sm">
+            <span class="text-[9px] font-bold text-amber-500 uppercase block">Rasgadas</span>
+            <div class="text-base sm:text-lg font-black font-mono text-amber-500" id="kpi-rasgadas">0</div>
+        </div>
+        <div class="ui-card border p-2 rounded-lg shadow-sm col-span-2 sm:col-span-1">
+            <span class="text-[9px] font-bold text-cyan-500 uppercase block">No App</span>
+            <div class="text-base sm:text-lg font-black font-mono text-cyan-500" id="kpi-no-app">0</div>
+        </div>
+    </div>
+
+    <!-- ABAS -->
+    <div class="flex border-b mb-3 overflow-x-auto ui-card rounded-t-lg border p-1 gap-1 items-center" id="container-abas-portoes"></div>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <div id="wrapper-conteudo-dinamico" class="fade-in">
+        <div class="ui-card rounded-lg border shadow-sm overflow-hidden mb-4">
+            <div id="banner-rasgadas-lidas" class="hidden bg-red-600 text-white p-2.5 flex items-center justify-between text-xs font-bold animate-pulse">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span id="texto-alerta-rasgada-lida">Atenção: Caixa rasgada lida neste portão!</span>
+                </div>
+            </div>
+
+            <div class="p-2.5 border-b flex flex-wrap justify-between items-center gap-2 opacity-90 bg-slate-100 dark:bg-zinc-900">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" id="titulo-portao-atual">
+                        <i class="fa-solid fa-truck text-blue-500"></i> Portão 7 - Faltas
+                    </span>
+                    <span id="indicador-cuidados" class="hidden text-[11px] font-normal text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30"></span>
+                    <button onclick="toggleCuidadosPortao()" id="btn-cuidados" class="text-[10px] opacity-40 hover:opacity-100 underline cursor-pointer font-normal" title="Sinalizar que este portão está sob sua responsabilidade">Sinalizar Cuidados</button>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[11px] font-bold opacity-75"><i class="fa-solid fa-filter text-blue-500"></i> Filtrar Ordem:</span>
+                    <select id="select-filtro-ordem" onchange="mudarFiltroOrdem(this.value)" class="ui-card border rounded px-2 py-1 text-xs font-mono font-bold cursor-pointer">
+                        <option value="TODAS">Todas as Ordens</option>
+                    </select>
+                    <span class="text-xs opacity-75 font-mono ml-2" id="contador-linhas-portao">0 registo(s)</span>
+                </div>
+            </div>
+
+            <div id="blocos-ordens-container" class="p-3 space-y-4"></div>
+        </div>
+
+    </div>
+
+    <!-- VISÃO GLOBAL -->
+    <div id="wrapper-todos-portoes" class="hidden fade-in space-y-4 mb-6">
+        <div class="ui-card border p-4 rounded-lg shadow-sm">
+            <div class="flex justify-between items-center border-b pb-3 mb-3">
+                <h2 class="text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-blue-500">
+                    <i class="fa-solid fa-layer-group"></i> Panorama Unificado - Todos os Portões
+                </h2>
+                <span class="text-xs opacity-75 font-mono" id="contador-total-geral">0 itens gerais</span>
+            </div>
+            <div class="overflow-x-auto max-h-[65vh]">
+                <table class="excel-table">
+                    <thead>
+                        <tr>
+                            <th class="w-24">Portão</th>
+                            <th style="min-width: 190px;">Código SSCC</th>
+                            <th class="w-36">Categoria</th>
+                            <th class="w-32">Status</th>
+                            <th class="w-28">Requisitada?</th>
+                            <th class="w-32">Origem</th>
+                            <th class="w-28">Ordem</th>
+                            <th class="w-20">No App?</th>
+                            <th>Observação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-tabela-todos-portoes"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed bottom-4 right-4 z-50">
+        <a href="https://oppo1-lac.vercel.app/" target="_blank" rel="noopener noreferrer"
+           class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-full shadow-2xl font-bold text-xs uppercase tracking-wider transition-all transform hover:scale-105 border border-blue-400/40 cursor-pointer">
+            <i class="fa-solid fa-arrow-right-from-bracket text-base"></i>
+            <span>Voltar ao Painel</span>
+        </a>
+    </div>
+
+    <script>
+    const PORTAO_MIN = 7, PORTAO_MAX = 26;
+    const ORIGENS = ['CD', 'Fábrica 1', 'Fábrica 2', 'Fábrica 3', 'Fábrica 5', 'Fábrica 6', 'Fábrica 7'];
+    const STATUS_FALTA = ['Pendente', 'Em andamento', 'Apareceu no Portão', 'Entregue no Portão'];
+    const ROTULO_STATUS = { 'Entregue no Portão': 'Ok' };
+    const rotuloStatus = v => ROTULO_STATUS[v] || v;
+    const optsStatusHTML = lista => lista.map(o => `<option value="${o}">${rotuloStatus(o)}</option>`).join('');
+    const CAMPOS = ['sscc', 'status', 'requisitada', 'origem', 'ordem', 'cor', 'noApp', 'obs'];
+    const SEM_ORDEM = 'SEM ORDEM DEFINIDA';
+    const clientId = Math.random().toString(36).slice(2, 8);
+
+    const recs = new Map();
+    const idIndex = new Map();
+    const tombstones = new Set();
+    const flashSet = new Set();
+    const ordensInterrompidas = new Set();
+    const ordensFinalizadas = new Set();
+    const ordensTimestamps = {};
+    const ordensTemposFechados = {};
+    const portoesCuidados = {};
+    const filtrosPortoes = {};
+    let portoesFixados = new Set();
+    try {
+        const salvoFix = localStorage.getItem('grendene_portoes_fixados');
+        if (salvoFix) portoesFixados = new Set(JSON.parse(salvoFix));
+    } catch(e) {}
+
+    let portaoAtual = 7;
+    let turnoAtual = 'Turno 1';
+    let responsavelAtual = '';
+    let dataAtual = '';
+    let loadToken = 0;
+    let diaCarregado = false;
+    let focoUid = null;
+    let html5QrcodeScanner = null;
+    let campoAlvoScanner = null;
+    let ordemAlvoColagemLote = '';
+    let portaoMenuContexto = null;
+
+    let rtOk = false;
+    let tentouFetch = false;
+    let ultimoFetchOk = false;
+    let buscandoToken = -1;
+    let pollTimer = null, cacheTimer = null;
+
+    function novoUid() {
+        return Date.now().toString(36).padStart(9, '0') + '-' + Math.random().toString(36).slice(2, 8);
+    }
+    function sortKeyDoUid(uid) {
+        const n = parseInt(String(uid).slice(0, 9), 36);
+        return isNaN(n) ? 0 : n;
+    }
+    function hojeLocal() {
+        const d = new Date(), p = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    }
+    function tratarSSCC(texto) {
+        if (!texto) return '';
+        let limpo = String(texto).replace(/\][A-Za-z0-9]+/g, '').replace(/\D/g, '');
+        if (limpo.length === 21) limpo = limpo.substring(1);
+        return limpo || String(texto).replace(/\][A-Za-z0-9]+/g, '').trim();
+    }
+    const ehRasgadaObs = obs => /^Rasgada \(/.test(obs || '');
+    const tipoDaObs = obs => (obs || '').startsWith('Rasgada (Lid') ? 'Lida' : 'Nao Lida';
+    const restoDaObs = obs => (obs || '').replace(/^Rasgada \([^)]*\):?\s*/, '');
+    const chaveOrdem = r => (r.ordem && r.ordem.trim() !== '') ? r.ordem.trim() : SEM_ORDEM;
+    const comparaRec = (a, b) => (a.sortKey - b.sortKey) || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0);
+    const $ = id => document.getElementById(id);
+
+    function formatarTempoDecorrido(ms) {
+        if (ms < 0) ms = 0;
+        const totalSegs = Math.floor(ms / 1000);
+        const hrs = Math.floor(totalSegs / 3600);
+        const mins = Math.floor((totalSegs % 3600) / 60);
+        const segs = totalSegs % 60;
+        if (hrs > 0) return `${hrs}h ${mins}m`;
+        if (mins > 0) return `${mins}m ${segs}s`;
+        return `${segs}s`;
+    }
+
+    function mostrarToast(mensagem) {
+        const container = $('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = 'pointer-events-auto ui-card border border-blue-500/50 bg-white dark:bg-zinc-900 shadow-xl rounded-lg p-3 text-xs flex items-center gap-3 transform translate-x-full opacity-0 transition-all duration-300';
+        toast.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-blue-600/20 text-blue-500 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            <div class="flex-1 font-medium">${mensagem}</div>
+        `;
+        container.appendChild(toast);
+        requestAnimationFrame(() => {
+            toast.classList.remove('translate-x-full', 'opacity-0');
+        });
+        setTimeout(() => {
+            toast.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 4500);
+    }
+
+    function enviarNotificacao(texto) {
+        const resp = responsavelAtual || 'Alguém';
+        const msg = `${resp} ${texto}`;
+        mostrarToast(msg);
+    }
+
+    function broadcastCuidados() {
+        // Implementado localmente no serverless
+    }
+
+    function toggleCuidadosPortao() {
+        if (portaoAtual === 'todos') return;
+        const resp = responsavelAtual || 'Responsável';
+        if (portoesCuidados[portaoAtual]) {
+            delete portoesCuidados[portaoAtual];
+            enviarNotificacao(`removeu o sinal de cuidados do portão ${portaoAtual}`);
+        } else {
+            portoesCuidados[portaoAtual] = resp;
+            enviarNotificacao(`assumiu os cuidados do portão ${portaoAtual}`);
+        }
+        renderTudo();
+    }
+
+    function dispararAnimacaoCaminhao(ordemKey, tempoDecorridoStr) {
+        const overlay = $('truck-animation-overlay');
+        const title = $('truck-overlay-title');
+        const subtitle = $('truck-overlay-subtitle');
+        if (!overlay || !title || !subtitle) return;
+        title.textContent = `Ordem ${ordemKey} Finalizada!`;
+        subtitle.textContent = `Tempo total na doca: ${tempoDecorridoStr} 🚚💨`;
+        overlay.classList.remove('hidden');
+        tocarSomCaminhaoRealista();
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
+        setTimeout(() => {
+            overlay.classList.add('hidden');
+        }, 4000);
+    }
+
+    function novoRec(o) {
+        const uid = o.uid || novoUid();
+        return {
+            uid, id: o.id || null, data: o.data || dataAtual,
+            portao: Number(o.portao), kind: o.kind || 'falta',
+            sscc: o.sscc || '', status: o.status || 'Pendente', requisitada: o.requisitada || 'Não', origem: o.origem || 'CD',
+            ordem: o.ordem || '', cor: o.cor || 'azul', noApp: o.noApp || 'Não', obs: o.obs || '',
+            criadoEm: o.criadoEm || Date.now(),
+            concluidoEm: o.concluidoEm || null,
+            saved: !!o.saved, dirty: o.dirty || {}, inflight: false, again: false, deleted: false,
+            touched: o.touched || Date.now(),
+            sortKey: (o.sortKey !== undefined && o.sortKey !== null) ? o.sortKey : sortKeyDoUid(uid)
+        };
+    }
+    function addRec(r) {
+        recs.set(r.uid, r);
+        if (r.id) idIndex.set(r.id, r.uid);
+        return r;
+    }
+    function removerLocal(r) {
+        recs.delete(r.uid);
+        if (r.id) idIndex.delete(r.id);
+    }
+
+    function marcarSujo(rec, campos) {
+        rec.touched = Date.now();
+        if (!rec.saved) {
+            if (!rec.sscc.trim()) { persistirPendentes(); return; }
+            CAMPOS.forEach(f => rec.dirty[f] = rec[f]);
+        } else {
+            campos.forEach(f => rec.dirty[f] = rec[f]);
+        }
+        persistirPendentes();
+        enviar(rec);
+    }
+
+    function payloadCompleto(rec) {
+        return {
+            data_operacao: rec.data,
+            portao: rec.portao,
+            sscc: rec.sscc,
+            status: rec.status,
+            requisitada: rec.requisitada,
+            origem: rec.origem,
+            ordem: rec.ordem,
+            prioridade_cor: rec.cor,
+            no_app: rec.noApp,
+            observacao: rec.obs,
+            turno: String(turnoAtual || 'Turno 1'),
+            responsavel: String(responsavelAtual || 'Não informado'),
+            uid: rec.uid
+        };
+    }
+
+    async function inserirLinha(rec) {
+        const res = await fetch('/api/dados', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ acao: 'inserir', payload: payloadCompleto(rec) })
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Erro ao inserir');
+        return json.id;
+    }
+
+    async function enviar(rec) {
+        if (rec.inflight) { rec.again = true; return; }
+        if (rec.deleted) return;
+        rec.inflight = true;
+        atualizarIndicadorSync();
+        let falhou = false;
+        try {
+            do {
+                rec.again = false;
+                if (!rec.saved && !rec.sscc.trim()) break;
+                if (!rec.saved) {
+                    const novoId = await inserirLinha(rec);
+                    rec.id = novoId; idIndex.set(novoId, rec.uid);
+                    rec.saved = true;
+                    if (rec.sscc.trim()) {
+                        if (rec.kind === 'rasgada') {
+                            enviarNotificacao(`registrou uma caixa rasgada no portão ${rec.portao}`);
+                        } else {
+                            enviarNotificacao(`registrou falta no portão ${rec.portao}`);
+                        }
+                    }
+                } else {
+                    const patch = {};
+                    Object.keys(rec.dirty).forEach(f => {
+                        const mapaCol = { sscc: 'sscc', status: 'status', requisitada: 'requisitada', origem: 'origem', ordem: 'ordem', cor: 'prioridade_cor', noApp: 'no_app', obs: 'observacao' };
+                        if (mapaCol[f]) patch[mapaCol[f]] = rec[f];
+                    });
+                    if (Object.keys(patch).length > 0) {
+                        const res = await fetch('/api/dados', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ acao: 'atualizar', id: rec.id, uid: rec.uid, payload: patch })
+                        });
+                        const json = await res.json();
+                        if (!res.ok) throw new Error(json.error || 'Erro ao atualizar');
+                    }
+                    rec.dirty = {};
+                }
+                rec.touched = Date.now();
+            } while (rec.again);
+            setAviso('escrita', '');
+        } catch (err) {
+            console.warn('Falha ao gravar linha', err);
+            falhou = true;
+            setAviso('escrita', `NÃO SALVOU no servidor: ${err.message}.`, 'erro');
+        } finally {
+            rec.inflight = false;
+            if (rec.deleted) apagarNoBanco(rec);
+            persistirPendentes();
+            atualizarIndicadorSync();
+            if (falhou && !rec.deleted) setTimeout(() => enviar(rec), 5000);
+        }
+    }
+
+    async function apagarNoBanco(rec, tentativa = 0) {
+        if (!rec.id && !rec.saved) return;
+        try {
+            await fetch('/api/dados', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao: 'deletar', id: rec.id, uid: rec.uid })
+            });
+        } catch (e) {
+            if (tentativa < 5) setTimeout(() => apagarNoBanco(rec, tentativa + 1), 3000);
+        }
+    }
+
+    function removerRegistro(rec) {
+        tombstones.add(rec.uid);
+        if (rec.id) tombstones.add('id:' + rec.id);
+        removerLocal(rec);
+        rec.deleted = true;
+        if (!rec.inflight) apagarNoBanco(rec);
+        persistirPendentes();
+    }
+
+    const chavePend = () => `grendene_pend_v2_${dataAtual}`;
+    function persistirPendentes() {
+        try {
+            const pend = [];
+            recs.forEach(r => {
+                if (r.data !== dataAtual) return;
+                if ((!r.saved && r.sscc.trim()) || Object.keys(r.dirty).length) {
+                    pend.push({ uid: r.uid, id: r.id, data: r.data, portao: r.portao, kind: r.kind, sscc: r.sscc, status: r.status,
+                        requisitada: r.requisitada, origem: r.origem, ordem: r.ordem, cor: r.cor, noApp: r.noApp, obs: r.obs, criadoEm: r.criadoEm, concluidoEm: r.concluidoEm, saved: r.saved, dirty: r.dirty, sortKey: r.sortKey });
+                }
+            });
+            if (pend.length) localStorage.setItem(chavePend(), JSON.stringify(pend));
+            else localStorage.removeItem(chavePend());
+        } catch (e) {}
+    }
+    function restaurarPendentes() {
+        try {
+            const bruto = localStorage.getItem(chavePend());
+            if (!bruto) return;
+            JSON.parse(bruto).forEach(p => { if (!recs.has(p.uid)) addRec(novaRec(p)); });
+        } catch (e) {}
+    }
+    function reenviarPendentes() {
+        recs.forEach(r => { if ((!r.saved && r.sscc.trim()) || Object.keys(r.dirty).length) enviar(r); });
+    }
+
+    function atualizarIndicadorSync() {
+        let n = 0;
+        recs.forEach(r => { if (r.inflight || Object.keys(r.dirty).length || (!r.saved && r.sscc.trim())) n++; });
+        const el = $('status-pendentes');
+        if (!el) return;
+        if (n > 0) { el.textContent = `${n} a enviar…`; el.classList.remove('hidden'); }
+        else el.classList.add('hidden');
+    }
+
+    const avisos = {};
+    function setAviso(chave, msg, nivel = 'aviso') {
+        if (msg) avisos[chave] = { msg, nivel }; else delete avisos[chave];
+        const el = $('aviso-sistema');
+        if (!el) return;
+        const lista = Object.values(avisos);
+        if (!lista.length) { el.classList.add('hidden'); el.textContent = ''; return; }
+        const erro = lista.some(a => a.nivel === 'erro');
+        el.className = 'mb-3 p-2.5 rounded-lg text-xs font-bold border ' +
+            (erro ? 'bg-red-600/10 border-red-500 text-red-500' : 'bg-amber-500/10 border-amber-500 text-amber-600');
+        el.textContent = lista.map(a => a.msg).join('   •   ');
+    }
+
+    function setConexao(estado) {
+        const el = $('status-conexao');
+        if (!el) return;
+        const cfg = {
+            ok: ['text-emerald-500', 'bg-emerald-500', 'Ao vivo (Serverless)'],
+            poll: ['text-emerald-500', 'bg-emerald-500', 'Sincronizando'],
+            conectando: ['text-amber-500', 'bg-amber-500', 'Conectando…'],
+            cache: ['text-red-500', 'bg-red-500', 'Modo Offline (Cópia local)'],
+            offline: ['text-red-500', 'bg-red-500', 'Offline']
+        }[estado];
+        el.className = `inline-flex items-center gap-1 font-bold ${cfg[0]}`;
+        el.innerHTML = `<span class="w-2 h-2 rounded-full ${cfg[1]} inline-block"></span> ${cfg[2]}`;
+    }
+    function atualizarStatusConexao() {
+        if (!tentouFetch) return setConexao('conectando');
+        if (!ultimoFetchOk) return setConexao('cache');
+        setConexao('ok');
+    }
+
+    function estaEditando(uid, f) {
+        const a = document.activeElement;
+        if (!a || !a.dataset || a.dataset.uid !== uid) return false;
+        return a.dataset.f === f || (f === 'obs' && (a.dataset.f === 'obsRest')) || (f === 'obs' && a.dataset.f === 'tipo');
+    }
+
+    function aplicarLinhaRemota(row, fetchStart) {
+        const idKey = 'id:' + row.id;
+        if ((row.uid && tombstones.has(row.uid)) || tombstones.has(idKey)) return null;
+        const uidLocal = (row.uid && recs.has(row.uid)) ? row.uid : idIndex.get(row.id);
+        let rec = uidLocal ? recs.get(uidLocal) : null;
+        const vals = {
+            sscc: row.sscc || '', status: row.status || 'Pendente', requisitada: row.requisitada || 'Não', origem: row.origem || 'CD',
+            ordem: row.ordem || '', cor: row.prioridade_cor || 'azul', noApp: row.no_app || 'Não', obs: row.observacao || ''
+        };
+        if (!rec && (!row.uid)) {
+            for (const r of recs.values()) {
+                if (!r.id && r.inflight && r.portao === row.portao && r.sscc === vals.sscc && r.data === row.data_operacao) { rec = r; break; }
+            }
+        }
+        if (!rec) {
+            const uid = row.uid || ('L' + row.id);
+            const sk = (row.uid && !row.uid.startsWith('L')) ? sortKeyDoUid(row.uid) : (Date.parse(row.created_at) || 0);
+            rec = addRec(novaRec({
+                uid, id: row.id, data: row.data_operacao, portao: row.portao,
+                kind: ehRasgadaObs(vals.obs) ? 'rasgada' : 'falta', ...vals,
+                criadoEm: Date.parse(row.created_at) || Date.now(),
+                concluidoEm: (vals.status === 'Entregue no Portão' || vals.status === 'Restaurada') ? (Date.parse(row.created_at) || Date.now()) : null,
+                saved: true, touched: Date.parse(row.created_at) || Date.now(), sortKey: sk
+            }));
+            flashSet.add(rec.uid);
+            return rec;
+        }
+        if (fetchStart && rec.touched > fetchStart) return rec;
+        rec.id = row.id; idIndex.set(row.id, rec.uid);
+        rec.saved = true;
+        rec.touched = Date.parse(row.created_at) || Date.now();
+        let mudou = false;
+        for (const f of CAMPOS) {
+            if (rec.dirty[f] !== undefined) continue;
+            if (estaEditando(rec.uid, f)) continue;
+            if (rec[f] !== vals[f]) {
+                if (f === 'status') {
+                    if ((vals[f] === 'Entregue no Portão' || vals[f] === 'Restaurada') && !rec.concluidoEm) rec.concluidoEm = Date.now();
+                    else if (vals[f] !== 'Entregue no Portão' && vals[f] !== 'Restaurada') rec.concluidoEm = null;
+                }
+                rec[f] = vals[f];
+                mudou = true;
+            }
+        }
+        if (mudou) flashSet.add(rec.uid);
+        return rec;
+    }
+
+    async function refrescar(token) {
+        const tok = (token === undefined) ? loadToken : token;
+        if (buscandoToken === tok) return;
+        buscandoToken = tok;
+        const t0 = Date.now();
+        const dia = dataAtual;
+        try {
+            const res = await fetch(`/api/dados?data_operacao=${encodeURIComponent(dia)}`);
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Erro ao carregar dados do servidor');
+            const data = json.data || [];
+            if (tok !== loadToken || dia !== dataAtual) return;
+            const vistos = new Set();
+            data.forEach(row => { const r = aplicarLinhaRemota(row, t0); if (r) { vistos.add(r.uid); r.faltou = 0; } });
+            if (data.length > 0) {
+                Array.from(recs.values()).forEach(r => {
+                    if (r.saved && !vistos.has(r.uid) && !r.inflight && !Object.keys(r.dirty).length && r.touched < t0) {
+                        r.faltou = (r.faltou || 0) + 1;
+                        if (r.faltou >= 2) removerLocal(r);
+                    }
+                });
+            }
+            diaCarregado = true;
+            tentouFetch = true;
+            ultimoFetchOk = true;
+            setAviso('leitura', '');
+            agendarCache();
+            agendarRender();
+        } catch (e) {
+            if (tok !== loadToken) return;
+            tentouFetch = true;
+            ultimoFetchOk = false;
+            setAviso('leitura', `Não foi possível ler o servidor: ${(e && e.message) || e}.`, 'erro');
+        } finally {
+            if (buscandoToken === tok) buscandoToken = -1;
+            if (tok === loadToken) atualizarStatusConexao();
+        }
+    }
+
+    const chaveCache = () => `grendene_cache_v2_${dataAtual}`;
+    function agendarCache() { clearTimeout(cacheTimer); cacheTimer = setTimeout(salvarCache, 1500); }
+    function salvarCache() {
+        try {
+            const lista = [];
+            recs.forEach(r => {
+                if (r.saved && r.data === dataAtual) {
+                    lista.push({ uid: r.uid, id: r.id, data: r.data, portao: r.portao, kind: r.kind, sscc: r.sscc, status: r.status,
+                        requisitada: r.requisitada, origem: r.origem, ordem: r.ordem, cor: r.cor, noApp: r.noApp, obs: r.obs, criadoEm: r.criadoEm, concluidoEm: r.concluidoEm, sortKey: r.sortKey });
+                }
+            });
+            if (lista.length) localStorage.setItem(chaveCache(), JSON.stringify(lista));
+        } catch (e) {}
+    }
+    function restaurarCache() {
+        try {
+            const bruto = localStorage.getItem(chaveCache());
+            if (!bruto) return;
+            JSON.parse(bruto).forEach(p => {
+                if (!recs.has(p.uid)) addRec(novaRec({ ...p, saved: true, dirty: {}, touched: 0 }));
+            });
+        } catch (e) {}
+    }
+
+    async function carregarDia() {
+        const meu = ++loadToken;
+        diaCarregado = false; tentouFetch = false; ultimoFetchOk = false; rtOk = false;
+        recs.clear(); idIndex.clear(); tombstones.clear(); flashSet.clear();
+        restaurarCache();
+        restaurarPendentes();
+        agendarRender();
+        atualizarStatusConexao();
+        await refrescar(meu);
+        if (meu !== loadToken) return;
+        reenviarPendentes();
+        agendarPoll();
+    }
+
+    function agendarPoll() {
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(async () => {
+            if (!document.hidden) await refrescar(loadToken);
+            agendarPoll();
+        }, 3000);
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { refrescar(loadToken); reenviarPendentes(); } });
+    window.addEventListener('online', () => { refrescar(loadToken); reenviarPendentes(); });
+    window.addEventListener('offline', () => { ultimoFetchOk = false; atualizarStatusConexao(); });
+
+    let ocTimer = null, ocUltimo = '';
+    function agendarSyncOcorrencias() {
+        if (!diaCarregado) return;
+        clearTimeout(ocTimer);
+        ocTimer = setTimeout(sincronizarOcorrenciasTurno, 2500);
+    }
+    async function sincronizarOcorrenciasTurno() {
+        if (!dataAtual || !diaCarregado) return;
+        let faltas = 0, rasgadas = 0;
+        recs.forEach(r => {
+            if (!r.sscc.trim()) return;
+            if (r.kind === 'rasgada') rasgadas++; else faltas++;
+        });
+        const assinatura = `${dataAtual}|${faltas}|${rasgadas}`;
+        if (assinatura === ocUltimo) return;
+        try {
+            await fetch('/api/dados', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    acao: 'sync_ocorrencias',
+                    data_operacao: dataAtual,
+                    payload: {
+                        data: dataAtual, sorter: 0, carregamento: rasgadas, faltas,
+                        pend_sorter: 0, pend_carregamento: 0, pend_faltas: 0,
+                        observacoes: 'Gerado automaticamente pelo Controle de Carregamento',
+                        responsavel: responsavelAtual || 'Yens Farrapo'
+                    }
+                })
+            });
+            ocUltimo = assinatura;
+        } catch (err) { console.warn('Erro ao sincronizar ocorrências:', err); }
+    }
+
+    const mesmoSSCC = (guardado, codigo) => {
+        const g = String(guardado == null ? '' : guardado).trim();
+        return g !== '' && (g === codigo || tratarSSCC(g) === codigo);
+    };
+
+    async function cruzarSSCC(rec) {
+        const codigo = rec.sscc;
+        if (!codigo) return;
+        try {
+            const res = await fetch('/api/dados', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao: 'cruzar', codigo, data_operacao: dataAtual })
+            });
+            const json = await res.json();
+            const msg = json.msg;
+            if (!msg || rec.sscc !== codigo || !recs.has(rec.uid)) return;
+            if (!rec.obs.includes(msg)) {
+                rec.obs = `[${msg}]`;
+                marcarSujo(rec, ['obs']);
+                agendarRender();
+                $('texto-alerta-integracao').innerText = msg;
+                $('modal-alerta-integracao').classList.remove('hidden');
+            }
+        } catch (e) { return; }
+    }
+    function fecharAlertaIntegracao() { $('modal-alerta-integracao').classList.add('hidden'); }
+
+    function abrirModalTempoSSCC(uid) {
+        const rec = recs.get(uid);
+        if (!rec) return;
+        $('detalhe-tempo-sscc').textContent = rec.sscc || 'Sem SSCC informado';
+        const dataCriacao = new Date(rec.criadoEm || Date.now());
+        $('detalhe-tempo-criacao').textContent = dataCriacao.toLocaleTimeString();
+        
+        const fimMs = rec.concluidoEm || Date.now();
+        const decorrido = fimMs - (rec.criadoEm || Date.now());
+        $('detalhe-tempo-decorrido').textContent = formatarTempoDecorrido(decorrido) + (rec.concluidoEm ? ' (Concluído 🔒)' : '');
+        $('detalhe-tempo-requisicao').textContent = rec.requisitada === 'Sim' ? '🔥 Requisitada (Sim)' : 'Não requisitada';
+        $('modal-tempo-sscc').classList.remove('hidden');
+    }
+    function fecharModalTempoSSCC() {
+        $('modal-tempo-sscc').classList.add('hidden');
+    }
+
+    function abrirModalColagemLote(ordemKey) {
+        ordemAlvoColagemLote = ordemKey;
+        $('titulo-modal-lote-ordem').textContent = ordemKey === SEM_ORDEM ? 'Sem Ordem' : `Ordem ${ordemKey}`;
+        $('textarea-lote-sscc').value = '';
+        $('modal-colagem-lote').classList.remove('hidden');
+    }
+    function fecharModalColagemLote() {
+        $('modal-colagem-lote').classList.add('hidden');
+    }
+    function processarColagemLote() {
+        const texto = $('textarea-lote-sscc').value;
+        if (!texto.trim()) { alert('Cole o texto copiado do SIAG antes de processar.'); return; }
+
+        const regex = /\b0047\d{11,21}\b/g;
+        const encontrados = texto.match(regex);
+
+        if (!encontrados || encontrados.length === 0) {
+            alert('Nenhum código SSCC válido (iniciado com 0047) foi encontrado no texto colado.');
+            return;
         }
 
-        function fecharModalRegistro() {
-            pararScanner();
-            document.getElementById('modal-registro').classList.add('hidden');
+        const unicos = [...new Set(encontrados)];
+        let inseridosNovos = 0;
+        let jaExistentes = 0;
+        const ordemReal = ordemAlvoColagemLote === SEM_ORDEM ? '' : ordemAlvoColagemLote;
+
+        unicos.forEach(codigo => {
+            const ssccTratado = tratarSSCC(codigo);
+            if (ssccTratado) {
+                const jaExisteNoPortao = Array.from(recs.values()).some(r => r.portao === portaoAtual && r.sscc === ssccTratado);
+                if (!jaExisteNoPortao) {
+                    const rec = addRec(novaRec({
+                        portao: portaoAtual,
+                        ordem: ordemReal,
+                        sscc: ssccTratado,
+                        status: 'Pendente',
+                        requisitada: 'Não',
+                        origem: 'CD',
+                        noApp: 'Não'
+                    }));
+                    marcarSujo(rec, CAMPOS);
+                    inseridosNovos++;
+                } else {
+                    jaExistentes++;
+                }
+            }
+        });
+
+        fecharModalColagemLote();
+        tocarSomSucesso();
+        let mensagemAnalise = `📊 Análise do Lote:\n• ${inseridosNovos} nova(s) falta(s) registrada(s).\n• ${jaExistentes} caixa(s) já haviam sido adicionadas antes.`;
+        mostrarToast(mensagemAnalise);
+        agendarRender();
+    }
+
+    function reconciliar(pai, itens, chave, criar, atualizar) {
+        const desejadas = new Set(itens.map(chave));
+        const existentes = new Map();
+        Array.from(pai.children).forEach(el => {
+            const k = el.dataset.k;
+            if (k !== undefined && desejadas.has(k) && !existentes.has(k)) existentes.set(k, el);
+            else el.remove();
+        });
+        itens.forEach((item, i) => {
+            const k = chave(item);
+            let el = existentes.get(k);
+            if (!el) { el = criar(item); el.dataset.k = k; }
+            atualizar(el, item, i);
+            const atual = pai.children[i];
+            if (atual !== el) pai.insertBefore(el, atual || null);
+        });
+    }
+
+    function setSelectValor(sel, valor) {
+        if (document.activeElement === sel) return;
+        if (sel.value === valor) return;
+        if (!Array.from(sel.options).some(o => o.value === valor)) {
+            const op = document.createElement('option'); op.value = valor; op.textContent = rotuloStatus(valor); sel.appendChild(op);
         }
+        sel.value = valor;
+    }
+    function setInputValor(inp, valor) {
+        if (document.activeElement === inp) return;
+        if (inp.value !== valor) inp.value = valor;
+    }
+    function aplicarFlash(tr, uid) {
+        if (!flashSet.has(uid)) return;
+        flashSet.delete(uid);
+        tr.classList.remove('flash-remoto');
+        void tr.offsetWidth;
+        tr.classList.add('flash-remoto');
+        setTimeout(() => tr.classList.remove('flash-remoto'), 1700);
+    }
+
+    const optsHTML = lista => lista.map(o => `<option value="${o}">${o}</option>`).join('');
+
+    function getClassStatus(status) {
+        const s = (status || '').toLowerCase().trim();
+        if (s.includes('andamento')) return 'status-em-andamento';
+        if (s.includes('apareceu')) return 'status-apareceu-no-portao';
+        if (s.includes('entregue')) return 'status-entregue-no-portao';
+        return 'status-pendente';
+    }
+    function getClassStatusRasgada(status) {
+        if (status === 'Restaurada') return 'status-rasgada-restaurada';
+        if (status === 'Entregue no Portão') return 'status-rasgada-entregue';
+        return 'status-rasgada-pendente';
+    }
+    function getClassCorBadge(cor) {
+        if (cor === 'vermelho') return 'bg-red-600 text-white';
+        if (cor === 'amarelo') return 'bg-amber-500 text-black';
+        return 'bg-blue-600 text-white';
+    }
+
+    function ehCaixaParada(rec) {
+        if (rec.status !== 'Em andamento') return false;
+        const fimMs = rec.concluidoEm || Date.now();
+        const tempoDecorridoMin = (fimMs - (rec.criadoEm || rec.touched || Date.now())) / (1000 * 60);
+        return tempoDecorridoMin >= 30;
+    }
+
+    function criarLinhaFalta(rec) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="text-center opacity-60 font-mono text-[11px]" data-label="#"></td>
+            <td class="td-sscc-container" data-label="SSCC">
+                <div class="flex items-center gap-1">
+                    <input type="text" data-f="sscc" autocomplete="off" placeholder="Digite o SSCC..." class="excel-input excel-input-sscc font-bold font-mono">
+                    <button type="button" data-action="info-tempo" class="opacity-50 hover:opacity-100 p-1 cursor-pointer shrink-0" title="Ver tempo da SSCC"><i class="fa-solid fa-clock text-xs"></i></button>
+                    <span data-role="badge-parada" class="hidden text-[9px] font-bold px-1 rounded bg-amber-500 text-black shrink-0 animate-pulse" title="Caixa parada há +30 minutos!">⏱️ +30m</span>
+                </div>
+            </td>
+            <td data-label="Status"><select data-f="status" class="excel-select">${optsStatusHTML(STATUS_FALTA)}</select></td>
+            <td data-label="Requisitada?"><select data-f="requisitada" class="excel-select"><option value="Não">Não</option><option value="Sim">Sim</option></select></td>
+            <td data-label="Origem"><select data-f="origem" class="excel-select border">${optsHTML(ORIGENS)}</select></td>
+            <td data-label="No App?"><select data-f="noApp" class="excel-select"><option value="Não">Não</option><option value="Sim">Sim</option></select></td>
+            <td data-label="Observação"><input type="text" data-f="obs" autocomplete="off" placeholder="Observação..." class="excel-input"></td>
+            <td class="text-center" data-label="Ação"><button data-action="del-row" class="opacity-60 hover:opacity-100 hover:text-red-600 p-1 cursor-pointer" title="Eliminar"><i class="fa-solid fa-trash-can text-xs"></i></button></td>`;
+        tr.querySelectorAll('[data-f],[data-action]').forEach(e => e.dataset.uid = rec.uid);
+        return tr;
+    }
+    function atualizarLinhaFalta(tr, rec, i) {
+        tr.children[0].textContent = i + 1;
+        setInputValor(tr.querySelector('[data-f="sscc"]'), rec.sscc);
+        const st = tr.querySelector('[data-f="status"]'); setSelectValor(st, rec.status);
+        st.className = 'excel-select ' + getClassStatus(rec.status);
+        
+        const req = tr.querySelector('[data-f="requisitada"]'); setSelectValor(req, rec.requisitada);
+        req.className = 'excel-select ' + (rec.requisitada === 'Sim' ? 'requisitada-sim' : 'requisitada-nao');
+
+        const ori = tr.querySelector('[data-f="origem"]'); setSelectValor(ori, rec.origem);
+        ori.className = 'excel-select border ' + (rec.origem !== 'CD' ? 'origem-fabrica' : 'origem-cd');
+
+        const ap = tr.querySelector('[data-f="noApp"]'); setSelectValor(ap, rec.noApp);
+        ap.className = 'excel-select ' + (rec.noApp === 'Sim' ? 'app-sim' : 'app-nao');
+        setInputValor(tr.querySelector('[data-f="obs"]'), rec.obs);
+        
+        const ehParada = ehCaixaParada(rec);
+        tr.classList.toggle('caixa-parada-alerta', ehParada);
+        const badgeParada = tr.querySelector('[data-role="badge-parada"]');
+        if (badgeParada) badgeParada.classList.toggle('hidden', !ehParada);
+
+        aplicarFlash(tr, rec.uid);
+    }
+
+    function montarBlocos(p) {
+        const grupos = new Map();
+        const g = k => { if (!grupos.has(k)) grupos.set(k, { key: k, itens: [], rasg: [] }); return grupos.get(k); };
+        Array.from(recs.values()).filter(r => r.portao === p).sort(comparaRec).forEach(r => {
+            (r.kind === 'rasgada' ? g(chaveOrdem(r)).rasg : g(chaveOrdem(r)).itens).push(r);
+        });
+        const peso = { vermelho: 1, amarelo: 2, azul: 3 };
+        const blocos = Array.from(grupos.values());
+        blocos.forEach(b => {
+            b.primeiro = b.itens[0] || b.rasg[0];
+            b.cor = b.primeiro.cor || 'azul';
+            const chaveT = `${p}_${b.key}`;
+            if (!ordensTimestamps[chaveT]) {
+                const maisAntigo = Math.min(...b.itens.map(x => x.criadoEm || Date.now()), Date.now());
+                ordensTimestamps[chaveT] = maisAntigo;
+            }
+        });
+        blocos.sort((a, b) => ((peso[a.cor] || 3) - (peso[b.cor] || 3)) || comparaRec(a.primeiro, b.primeiro));
+        return blocos;
+    }
+
+    let opcoesOrdem = [], sigOrdens = '';
+    function calcularOpcoesOrdem(blocos) {
+        const ops = blocos.filter(b => b.key !== SEM_ORDEM).map(b => ({ v: b.key, l: `Ordem ${b.key}` }));
+        ops.push({ v: '', l: 'Sem ordem definida' });
+        opcoesOrdem = ops;
+        sigOrdens = ops.map(o => o.v).join('\u0001');
+    }
+
+    function criarBloco(b) {
+        const div = document.createElement('div');
+        div.className = 'bloco ui-card border rounded-lg overflow-hidden shadow-sm';
+        div.innerHTML = `
+            <div class="bg-blue-50/50 dark:bg-zinc-900/80 p-2.5 border-b flex flex-wrap justify-between items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span data-role="badge" class="text-[10px] font-mono font-bold px-2.5 py-1 rounded shadow-sm uppercase tracking-wide"></span>
+                    <span data-role="badge-interrompida" class="hidden text-[10px] font-extrabold px-2 py-0.5 rounded bg-red-600 text-white uppercase tracking-wider animate-pulse">⏸️ ORDEM INTERROMPIDA</span>
+                    <span data-role="badge-finalizada" class="hidden text-[10px] font-extrabold px-2.5 py-0.5 rounded bg-emerald-600 text-white uppercase tracking-wider">🚚 ORDEM FINALIZADA</span>
+                    <span data-role="cronometro-bloco" class="text-[11px] font-mono font-medium opacity-80 px-2 py-0.5 rounded border flex items-center gap-1" title="Tempo ativo nesta ordem"><i class="fa-solid fa-clock text-blue-500"></i> <span data-role="tempo-texto">00:00</span></span>
+                    <span data-role="badge-tempo-alerta" class="hidden text-[10px] font-bold px-2 py-0.5 rounded animate-pulse"></span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-bold opacity-75">Nº Ordem:</span>
+                        <input type="text" data-role="ordem-input" autocomplete="off" placeholder="Digite a ordem..." class="ui-card border rounded px-2 py-0.5 font-mono text-xs font-bold w-36">
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span data-role="count" class="text-[11px] opacity-75 font-mono"></span>
+                    <button data-action="toggle-finalizada" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] px-2 py-1 rounded font-bold cursor-pointer flex items-center gap-1" title="Finalizar Ordem e Tirar Caminhão da Doca"><i class="fa-solid fa-truck-fast"></i> Finalizar</button>
+                    <button data-action="toggle-interrompida" class="bg-red-600/80 hover:bg-red-600 text-white text-[11px] px-2 py-1 rounded font-bold cursor-pointer flex items-center gap-1" title="Marcar Ordem Interrompida"><i class="fa-solid fa-ban"></i> Interrompida</button>
+                    <button data-action="add-line" class="bg-gray-700 hover:bg-gray-800 text-white text-[11px] px-2 py-1 rounded font-bold cursor-pointer flex items-center gap-1" title="Adicionar Linha Individual"><i class="fa-solid fa-plus"></i> Linha</button>
+                    <button data-action="colar-lote" class="bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] px-2 py-1 rounded font-bold cursor-pointer flex items-center justify-center" title="Colar Lote de SSCCs do SIAG"><i class="fa-solid fa-paste"></i></button>
+                    <button data-action="del-block" class="bg-red-600/80 hover:bg-red-600 text-white text-[11px] px-2 py-1 rounded font-bold cursor-pointer" title="Remover Bloco"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+            </div>
+            <div data-role="wrap-faltas" class="overflow-x-auto">
+                <table class="excel-table">
+                    <thead><tr>
+                        <th class="w-6 text-center">#</th><th style="min-width:190px;">Código SSCC</th><th style="width:125px;">Status</th>
+                        <th style="width:105px;">Requisitada?</th><th style="width:110px;">Origem</th><th style="width:80px;">No App?</th><th>Observação</th><th class="w-8 text-center">Ação</th>
+                    </tr></thead>
+                    <tbody data-role="tbody"></tbody>
+                </table>
+            </div>
+            <div data-role="wrap-rasg" class="hidden border-t-2 border-amber-500/70">
+                <div class="px-2.5 py-1.5 bg-amber-500/10 flex justify-between items-center text-xs font-bold uppercase tracking-wider text-amber-600">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation"></i> Caixas rasgadas desta ordem</span>
+                    <span data-role="count-rasg" class="font-mono opacity-75 normal-case"></span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="excel-table">
+                        <thead><tr>
+                            <th class="w-6 text-center">#</th><th style="min-width:190px;">Código SSCC</th><th style="width:130px;">Tipo</th>
+                            <th style="width:135px;">Status</th><th style="width:110px;">Origem</th><th style="width:130px;">Ordem</th>
+                            <th>Observação</th><th class="w-8 text-center">Ação</th>
+                        </tr></thead>
+                        <tbody data-role="tbody-rasg"></tbody>
+                    </table>
+                </div>
+            </div>`;
+        return div;
+    }
+
+    function toggleOrdemInterrompida(ordemKey) {
+        if (ordensInterrompidas.has(ordemKey)) {
+            ordensInterrompidas.delete(ordemKey);
+            enviarNotificacao(`removeu o status de interrompida da ordem ${ordemKey}`);
+        } else {
+            ordensInterrompidas.add(ordemKey);
+            enviarNotificacao(`marcou a ordem ${ordemKey} como INTERROMPIDA!`);
+        }
+        agendarRender();
+    }
+
+    function toggleOrdemFinalizada(ordemKey) {
+        const chaveT = `${portaoAtual}_${ordemKey}`;
+        const inicio = ordensTimestamps[chaveT] || Date.now();
+        const tempoMs = ordensTemposFechados[ordemKey] || (Date.now() - inicio);
+        const tempoDecorridoStr = formatarTempoDecorrido(tempoMs);
+
+        if (ordensFinalizadas.has(ordemKey)) {
+            ordensFinalizadas.delete(ordemKey);
+            delete ordensTemposFechados[ordemKey];
+            enviarNotificacao(`reabriu a ordem ${ordemKey} na doca`);
+        } else {
+            ordensFinalizadas.add(ordemKey);
+            ordensTemposFechados[ordemKey] = tempoMs;
+            dispararAnimacaoCaminhao(ordemKey, tempoDecorridoStr);
+            enviarNotificacao(`finalizou a ordem ${ordemKey} em ${tempoDecorridoStr}! Caminhão liberado 🚚`);
+        }
+        agendarRender();
+    }
+
+    function atualizarBloco(el, b, idx) {
+        const badge = el.querySelector('[data-role="badge"]');
+        badge.className = `${getClassCorBadge(b.cor)} text-[10px] font-mono font-bold px-2.5 py-1 rounded shadow-sm uppercase tracking-wide`;
+        badge.textContent = `Ordem #${idx + 1}`;
+        
+        const ehInterrompida = ordensInterrompidas.has(b.key);
+        const ehFinalizada = ordensFinalizadas.has(b.key);
+
+        el.classList.toggle('bloco-interrompida-maxima', ehInterrompida && !ehFinalizada);
+        el.classList.toggle('bloco-finalizado', ehFinalizada);
+
+        const badgeInterrompida = el.querySelector('[data-role="badge-interrompida"]');
+        if (badgeInterrompida) badgeInterrompida.classList.toggle('hidden', !ehInterrompida || ehFinalizada);
+
+        const badgeFinalizada = el.querySelector('[data-role="badge-finalizada"]');
+        if (badgeFinalizada) badgeFinalizada.classList.toggle('hidden', !ehFinalizada);
+
+        const chaveT = `${portaoAtual}_${b.key}`;
+        const inicio = ordensTimestamps[chaveT] || Date.now();
+        const msAtivo = ehFinalizada ? (ordensTemposFechados[b.key] || (Date.now() - inicio)) : (Date.now() - inicio);
+        
+        const elTempo = el.querySelector('[data-role="tempo-texto"]');
+        if (elTempo) elTempo.textContent = formatarTempoDecorrido(msAtivo);
+
+        const badgeAlerta = el.querySelector('[data-role="badge-tempo-alerta"]');
+        el.classList.remove('bloco-alerta-30m', 'bloco-alerta-1h');
+        if (!ehFinalizada) {
+            const mins = msAtivo / (1000 * 60);
+            if (mins >= 60) {
+                el.classList.add('bloco-alerta-1h');
+                if (badgeAlerta) {
+                    badgeAlerta.textContent = '⚠️ Ordem > 1h em espera';
+                    badgeAlerta.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-red-600 text-white animate-pulse';
+                    badgeAlerta.classList.remove('hidden');
+                }
+            } else if (mins >= 30) {
+                el.classList.add('bloco-alerta-30m');
+                if (badgeAlerta) {
+                    badgeAlerta.textContent = '⏱️ Ordem > 30m';
+                    badgeAlerta.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500 text-black animate-pulse';
+                    badgeAlerta.classList.remove('hidden');
+                }
+            } else {
+                if (badgeAlerta) badgeAlerta.classList.add('hidden');
+            }
+        } else {
+            if (badgeAlerta) badgeAlerta.classList.add('hidden');
+        }
+
+        const btnFinalizar = el.querySelector('[data-action="toggle-finalizada"]');
+        if (btnFinalizar) {
+            btnFinalizar.innerHTML = ehFinalizada ? '<i class="fa-solid fa-rotate-left"></i> Reabrir' : '<i class="fa-solid fa-truck-fast"></i> Finalizar';
+            btnFinalizar.className = ehFinalizada ? 'bg-slate-600 hover:bg-slate-500 text-white text-[11px] px-2 py-1 rounded font-bold cursor-pointer flex items-center gap-1' : 'bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] px-2 py-1 rounded font-bold cursor-pointer flex items-center gap-1';
+        }
+
+        setInputValor(el.querySelector('[data-role="ordem-input"]'), b.key === SEM_ORDEM ? '' : b.key);
+        el.querySelector('[data-role="count"]').textContent =
+            `${b.itens.length} item(ns)` + (b.rasg.length ? ` • ${b.rasg.length} rasgada(s)` : '');
+        el.querySelector('[data-role="wrap-faltas"]').classList.toggle('hidden', b.itens.length === 0);
+        reconciliar(el.querySelector('[data-role="tbody"]'), b.itens, r => r.uid, criarLinhaFalta, atualizarLinhaFalta);
+        el.querySelector('[data-role="wrap-rasg"]').classList.toggle('hidden', b.rasg.length === 0);
+        el.querySelector('[data-role="count-rasg"]').textContent = `${b.rasg.length} registo(s)`;
+        reconciliar(el.querySelector('[data-role="tbody-rasg"]'), b.rasg, r => r.uid, criarLinhaRasgada, atualizarLinhaRasgada);
+    }
+
+    function renderBlocos() {
+        const container = $('blocos-ordens-container');
+        let doPortao = Array.from(recs.values()).filter(r => r.portao === portaoAtual);
+        const reais = doPortao.filter(r => !r.placeholder);
+        if (reais.length) {
+            doPortao.filter(r => r.placeholder && !r.sscc.trim() && !Object.keys(r.dirty).length && !r.inflight).forEach(removerLocal);
+        } else if (doPortao.length === 0) {
+            addRec(novaRec({ portao: portaoAtual })).placeholder = true;
+        }
+        doPortao = Array.from(recs.values()).filter(r => r.portao === portaoAtual);
+        const nFaltas = doPortao.filter(r => r.kind === 'falta').length;
+        const nRasg = doPortao.length - nFaltas;
+        $('contador-linhas-portao').innerText = `${nFaltas} registo(s)` + (nRasg ? ` + ${nRasg} rasgada(s)` : '');
+
+        const filtro = filtrosPortoes[portaoAtual] || 'TODAS';
+        const sel = $('select-filtro-ordem');
+        if (sel.value !== filtro) sel.value = filtro;
+
+        let blocos = montarBlocos(portaoAtual);
+        calcularOpcoesOrdem(blocos);
+        if (filtro !== 'TODAS') blocos = blocos.filter(b => b.key === filtro);
+
+        reconciliar(container, blocos, b => b.key, criarBloco, atualizarBloco);
+        if (blocos.length === 0) {
+            container.innerHTML = '<p class="text-center opacity-50 py-6 text-xs">Nenhum registro encontrado para a ordem selecionada.</p>';
+        }
+    }
+
+    function atualizarFiltroOrdem() {
+        const sel = $('select-filtro-ordem');
+        const ords = new Set();
+        recs.forEach(r => { if (r.portao === portaoAtual) ords.add(chaveOrdem(r)); });
+        const lista = ['TODAS', ...ords];
+        const assinatura = lista.join('\u0001');
+        if (sel.dataset.sig === assinatura) return;
+        const atual = filtrosPortoes[portaoAtual] || 'TODAS';
+        sel.innerHTML = '';
+        lista.forEach(o => {
+            const op = document.createElement('option');
+            op.value = o; op.textContent = o === 'TODAS' ? 'Todas as Ordens' : o;
+            sel.appendChild(op);
+        });
+        sel.value = lista.includes(atual) ? atual : 'TODAS';
+        filtrosPortoes[portaoAtual] = sel.value;
+        sel.dataset.sig = assinatura;
+    }
+
+    function mudarFiltroOrdem(valor) {
+        filtrosPortoes[portaoAtual] = valor;
+        agendarRender();
+    }
+
+    function criarLinhaRasgada(rec) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="text-center opacity-60 font-mono text-[11px]" data-label="#"></td>
+            <td class="td-sscc-container" data-label="SSCC"><div class="flex items-center gap-2.5 w-full justify-end">
+                <input type="text" data-f="sscc" autocomplete="off" class="excel-input excel-input-sscc font-bold font-mono">
+                <button type="button" data-action="scan" class="text-amber-500 hover:text-amber-700 p-1 cursor-pointer" title="Bipar"><i class="fa-solid fa-camera text-xs"></i></button>
+            </div></td>
+            <td data-label="Tipo"><select data-f="tipo" class="excel-select font-bold"><option value="Lida">Rasgada (Lida)</option><option value="Nao Lida">Rasgada (Não Lida)</option></select></td>
+            <td data-label="Status"><select data-f="status" class="excel-select">
+                <option value="Pendente">Pendente</option>
+                <option value="Restaurada">Restaurada</option><option value="Entregue no Portão">Ok</option></select></td>
+            <td data-label="Origem"><select data-f="origem" class="excel-select border">${optsHTML(ORIGENS)}</select></td>
+            <td data-label="Ordem"><select data-f="ordem" class="excel-select font-mono"></select></td>
+            <td data-label="Observação"><input type="text" data-f="obsRest" autocomplete="off" class="excel-input"></td>
+            <td class="text-center" data-label="Ação"><button data-action="del-row" class="opacity-60 hover:opacity-100 hover:text-red-600 p-1 cursor-pointer"><i class="fa-solid fa-trash-can text-xs"></i></button></td>`;
+        tr.querySelectorAll('[data-f],[data-action]').forEach(e => e.dataset.uid = rec.uid);
+        return tr;
+    }
+    function atualizarLinhaRasgada(tr, rec, i) {
+        tr.children[0].textContent = i + 1;
+        setInputValor(tr.querySelector('[data-f="sscc"]'), rec.sscc);
+        const tipo = tipoDaObs(rec.obs);
+        const st = tr.querySelector('[data-f="tipo"]'); setSelectValor(st, tipo);
+        st.className = 'excel-select font-bold ' + (tipo === 'Lida' ? 'text-red-600' : 'text-amber-600');
+        const s = tr.querySelector('[data-f="status"]'); setSelectValor(s, rec.status);
+        s.className = 'excel-select ' + getClassStatusRasgada(rec.status);
+        
+        const ori = tr.querySelector('[data-f="origem"]'); setSelectValor(ori, rec.origem);
+        ori.className = 'excel-select border ' + (rec.origem !== 'CD' ? 'origem-fabrica' : 'origem-cd');
+
+        const so = tr.querySelector('[data-f="ordem"]');
+        if (so.dataset.sig !== sigOrdens && document.activeElement !== so) {
+            so.textContent = '';
+            opcoesOrdem.forEach(o => { const op = document.createElement('option'); op.value = o.v; op.textContent = o.l; so.appendChild(op); });
+            so.dataset.sig = sigOrdens;
+        }
+        setSelectValor(so, rec.ordem);
+        setInputValor(tr.querySelector('[data-f="obsRest"]'), restoDaObs(rec.obs));
+        aplicarFlash(tr, rec.uid);
+    }
+
+    function renderPanorama() {
+        const tbody = $('corpo-tabela-todos-portoes');
+        tbody.innerHTML = '';
+        let total = 0;
+        const lista = Array.from(recs.values()).filter(r => r.sscc.trim()).sort((a, b) => (a.portao - b.portao) || comparaRec(a, b));
+        lista.forEach(r => {
+            total++;
+            const tr = document.createElement('tr');
+            const rasg = r.kind === 'rasgada';
+            const ehFabrica = r.origem && r.origem !== 'CD';
+            const catTexto = rasg ? `Rasgada (${tipoDaObs(r.obs)})` : (ehFabrica ? 'Falta (Fábrica)' : 'Falta Normal');
+            const origTexto = ehFabrica ? `${r.origem} 🏭` : r.origem;
+            const cel = [
+                [`Portão ${r.portao}`, 'font-bold ' + (rasg ? 'text-amber-500' : 'text-blue-500')],
+                [r.sscc, 'font-mono font-bold'],
+                [catTexto, ehFabrica ? 'font-bold text-purple-600 dark:text-purple-400' : ''],
+                [rotuloStatus(r.status), ''], [r.requisitada || 'Não', ''],
+                [origTexto, ehFabrica ? 'font-bold text-red-600' : ''], [r.ordem, ''],
+                [rasg ? 'Sim' : r.noApp, ''], [rasg ? restoDaObs(r.obs) : r.obs, '']
+            ];
+            cel.forEach(([txt, cls]) => { const td = document.createElement('td'); td.textContent = txt; if (cls) td.className = cls; tr.appendChild(td); });
+            tbody.appendChild(tr);
+        });
+        $('contador-total-geral').innerText = `${total} itens gerais`;
+    }
+
+    function atualizarKPIs() {
+        let total = 0, entregues = 0, pendentes = 0, requisitadas = 0, rasgadas = 0, noApp = 0, pendFabrica = 0;
+        recs.forEach(r => {
+            if (r.kind === 'rasgada') rasgadas++;
+            if (!r.sscc.trim()) return;
+            total++;
+            if (r.status === 'Entregue no Portão') entregues++; else pendentes++;
+            if (r.requisitada === 'Sim') requisitadas++;
+            if (r.kind === 'falta' && r.noApp === 'Sim') noApp++;
+            if (r.origem && r.origem !== 'CD') pendFabrica++;
+        });
+        $('kpi-total-faltas').innerText = total;
+        $('kpi-entregues').innerText = entregues;
+        $('kpi-pendentes').innerText = pendentes;
+        $('kpi-pend-fabrica').innerText = pendFabrica;
+        $('kpi-requisitadas').innerText = requisitadas;
+        $('kpi-rasgadas').innerText = rasgadas;
+        $('kpi-no-app').innerText = noApp;
+    }
+    function atualizarBadgesAbas() {
+        const tem = new Set();
+        recs.forEach(r => { if (r.kind === 'rasgada') tem.add(r.portao); });
+        for (let i = PORTAO_MIN; i <= PORTAO_MAX; i++) {
+            const b = $(`badge-rasgada-${i}`);
+            if (b) b.classList.toggle('hidden', !tem.has(i));
+        }
+    }
+    function verificarBanner() {
+        const banner = $('banner-rasgadas-lidas');
+        let n = 0;
+        recs.forEach(r => { if (r.kind === 'rasgada' && r.portao === portaoAtual && tipoDaObs(r.obs) === 'Lida') n++; });
+        if (n > 0) { banner.classList.remove('hidden'); $('texto-alerta-rasgada-lida').innerHTML = `Atenção: Caixa rasgada lida neste portão! (${n} un)`; }
+        else banner.classList.add('hidden');
+    }
+
+    let rafId = 0;
+    function agendarRender() { if (rafId) return; rafId = requestAnimationFrame(() => { rafId = 0; renderTudo(); }); }
+    function renderTudo() {
+        atualizarKPIs();
+        atualizarBadgesAbas();
+        atualizarIndicadorSync();
+        if (portaoAtual === 'todos') {
+            $('wrapper-todos-portoes').classList.remove('hidden');
+            $('wrapper-conteudo-dinamico').classList.add('hidden');
+            renderPanorama();
+        } else {
+            $('wrapper-todos-portoes').classList.add('hidden');
+            $('wrapper-conteudo-dinamico').classList.remove('hidden');
+            atualizarFiltroOrdem();
+            renderBlocos();
+            verificarBanner();
+
+            const indicador = $('indicador-cuidados');
+            const btnCuidados = $('btn-cuidados');
+            if (indicador && btnCuidados) {
+                const respCuidados = portoesCuidados[portaoAtual];
+                if (respCuidados) {
+                    indicador.textContent = `👤 Sob cuidados de ${respCuidados}`;
+                    indicador.classList.remove('hidden');
+                    btnCuidados.textContent = '(Remover)';
+                    btnCuidados.classList.add('opacity-80', 'text-amber-500');
+                } else {
+                    indicador.classList.add('hidden');
+                    btnCuidados.textContent = 'Sinalizar Cuidados';
+                    btnCuidados.classList.remove('opacity-80', 'text-amber-500');
+                }
+            }
+
+            if (focoUid) {
+                const el = document.querySelector(`[data-k="${CSS.escape(focoUid)}"] [data-f="sscc"]`);
+                if (el) el.focus();
+                focoUid = null;
+            }
+        }
+        agendarSyncOcorrencias();
+        agendarCache();
+    }
+
+    function onCampoAlterado(el) {
+        const rec = recs.get(el.dataset.uid);
+        if (!rec) return;
+        let f = el.dataset.f, v = el.value;
+        if (f === 'sscc') { v = tratarSSCC(v); el.value = v; }
+        else if (f === 'obsRest') { f = 'obs'; v = `Rasgada (${tipoDaObs(rec.obs)}): ${v.trim()}`; }
+        else if (f === 'tipo') { f = 'obs'; v = `Rasgada (${v}): ${restoDaObs(rec.obs)}`; }
+        if (rec[f] === v) return;
+
+        if (f === 'status') {
+            const rotulo = rotuloStatus(v);
+            const idCaixa = rec.sscc.trim() ? `da caixa ${rec.sscc}` : 'de uma caixa';
+            enviarNotificacao(`mudou status ${idCaixa} para "${rotulo}" no portão ${rec.portao}`);
+            if (v === 'Entregue no Portão' || v === 'Restaurada') {
+                rec.concluidoEm = Date.now();
+            } else {
+                rec.concluidoEm = null;
+            }
+        }
+
+        if (f === 'origem') {
+            const idCaixa = rec.sscc.trim() ? `da caixa ${rec.sscc}` : 'de uma caixa';
+            if (v !== 'CD') {
+                enviarNotificacao(`marcou pendência de fábrica (${v}) ${idCaixa} no portão ${rec.portao}`);
+            } else {
+                enviarNotificacao(`retornou a origem ${idCaixa} para CD no portão ${rec.portao}`);
+            }
+        }
+
+        rec[f] = v;
+        rec.placeholder = false;
+        marcarSujo(rec, [f]);
+        if (f === 'status' && v === 'Entregue no Portão') tocarSomConquistaAnimada();
+        if (f === 'sscc' && rec.kind === 'falta') cruzarSSCC(rec);
+        agendarRender();
+    }
+
+    function ligarEventos(container) {
+        container.addEventListener('change', e => {
+            const t = e.target;
+            if (t.dataset && t.dataset.f && t.dataset.uid) onCampoAlterado(t);
+            else if (t.dataset && t.dataset.role === 'ordem-input') renomearBloco(t.closest('.bloco').dataset.k, t.value);
+        });
+        container.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); e.target.blur(); }
+        });
+        container.addEventListener('click', e => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const acao = btn.dataset.action;
+            if (acao === 'del-row') {
+                const rec = recs.get(btn.dataset.uid);
+                if (rec) { removerRegistro(rec); agendarRender(); }
+            } else if (acao === 'scan') {
+                const tr = btn.closest('tr');
+                abrirModalScannerParaCampo(tr.querySelector('[data-f="sscc"]'));
+            } else if (acao === 'info-tempo') {
+                abrirModalTempoSSCC(btn.dataset.uid);
+            } else if (acao === 'add-line') {
+                adicionarLinhaEmOrdem(btn.closest('.bloco').dataset.k);
+            } else if (acao === 'colar-lote') {
+                abrirModalColagemLote(btn.closest('.bloco').dataset.k);
+            } else if (acao === 'del-block') {
+                removerBlocoOrdem(btn.closest('.bloco').dataset.k);
+            } else if (acao === 'toggle-interrompida') {
+                toggleOrdemInterrompida(btn.closest('.bloco').dataset.k);
+            } else if (acao === 'toggle-finalizada') {
+                toggleOrdemFinalizada(btn.closest('.bloco').dataset.k);
+            }
+        });
+    }
+
+    function abrirModalNovaOrdem() {
+        $('input-modal-num-ordem').value = '';
+        $('select-modal-cor-ordem').value = 'azul';
+        $('modal-nova-ordem').classList.remove('hidden');
+    }
+    function fecharModalNovaOrdem() { $('modal-nova-ordem').classList.add('hidden'); }
+    function confirmarAdicionarNovaOrdem() {
+        const num = $('input-modal-num-ordem').value.trim();
+        if (!num) { alert('Por favor, digite o número da Ordem.'); return; }
+        const rec = addRec(novaRec({ portao: portaoAtual, ordem: num, cor: $('select-modal-cor-ordem').value }));
+        focoUid = rec.uid;
+        enviarNotificacao(`criou a nova ordem ${num} no portão ${portaoAtual}`);
+        fecharModalNovaOrdem();
+        agendarRender();
+    }
+    function adicionarLinhaEmOrdem(ordemKey) {
+        const itens = Array.from(recs.values()).filter(r => r.kind === 'falta' && r.portao === portaoAtual && chaveOrdem(r) === ordemKey).sort(comparaRec);
+        const rec = addRec(novaRec({
+            portao: portaoAtual, ordem: ordemKey === SEM_ORDEM ? '' : ordemKey,
+            cor: itens[0] ? itens[0].cor : 'azul'
+        }));
+        focoUid = rec.uid;
+        agendarRender();
+    }
+    function renomearBloco(ordemAntiga, novoValor) {
+        const v = novoValor.trim();
+        if (v === (ordemAntiga === SEM_ORDEM ? '' : ordemAntiga)) return;
+        recs.forEach(r => {
+            if (r.portao === portaoAtual && chaveOrdem(r) === ordemAntiga) {
+                r.ordem = v;
+                marcarSujo(r, ['ordem']);
+            }
+        });
+        agendarRender();
+    }
+    function removerBlocoOrdem(ordemKey) {
+        if (!confirm(`Deseja remover todos os registros da ordem "${ordemKey}" deste portão?`)) return;
+        Array.from(recs.values()).forEach(r => {
+            if (r.portao === portaoAtual && chaveOrdem(r) === ordemKey) removerRegistro(r);
+        });
+        enviarNotificacao(`removeu a ordem ${ordemKey} do portão ${portaoAtual}`);
+        agendarRender();
+    }
+
+    function popularSelectPortoesModal() {
+        const select = $('rasgada-portao');
+        select.innerHTML = '';
+        for (let i = PORTAO_MIN; i <= PORTAO_MAX; i++) {
+            const opt = document.createElement('option');
+            opt.value = i; opt.innerText = `Portão ${i}`;
+            select.appendChild(opt);
+        }
+    }
+    function popularOrdensModalRasgada(preferida) {
+        const p = parseInt($('rasgada-portao').value);
+        const sel = $('rasgada-ordem');
+        sel.innerHTML = '';
+        let temVazio = false;
+        montarBlocos(p).forEach(b => {
+            const v = b.key === SEM_ORDEM ? '' : b.key;
+            if (v === '') temVazio = true;
+            const op = document.createElement('option');
+            op.value = v; op.textContent = v === '' ? 'Sem ordem definida' : `Ordem ${v}`;
+            sel.appendChild(op);
+        });
+        if (!temVazio) {
+            const op = document.createElement('option');
+            op.value = ''; op.textContent = 'Sem ordem definida';
+            sel.appendChild(op);
+        }
+        if (typeof preferida === 'string' && Array.from(sel.options).some(o => o.value === preferida)) sel.value = preferida;
+    }
+    function abrirModalRasgada() {
+        $('rasgada-portao').value = portaoAtual === 'todos' ? 7 : portaoAtual;
+        $('rasgada-sscc').value = '';
+        $('rasgada-obs').value = '';
+        let preferida;
+        if (portaoAtual !== 'todos') {
+            const f = filtrosPortoes[portaoAtual];
+            if (f && f !== 'TODAS') preferida = (f === SEM_ORDEM) ? '' : f;
+        }
+        popularOrdensModalRasgada(preferida);
+        $('modal-rasgada').classList.remove('hidden');
+    }
+    function fecharModalRasgada() { $('modal-rasgada').classList.add('hidden'); }
+    function salvarCaixaRasgada() {
+        const portaoAlvo = parseInt($('rasgada-portao').value);
+        const sscc = tratarSSCC($('rasgada-sscc').value.trim());
+        const tipo = $('rasgada-tipo').value;
+        const ordemSel = $('rasgada-ordem').value || '';
+        const obs = $('rasgada-obs').value.trim() || 'Caixa rasgada no carregamento';
+        if (!sscc) { alert('Informe o código SSCC da caixa rasgada.'); return; }
+        const bloco = montarBlocos(portaoAlvo).find(b => (b.key === SEM_ORDEM ? '' : b.key) === ordemSel);
+        const rec = addRec(novaRec({
+            portao: portaoAlvo, kind: 'rasgada', sscc, ordem: ordemSel, cor: bloco ? bloco.cor : 'vermelho', noApp: 'Sim',
+            obs: `Rasgada (${tipo}): ${obs}`
+        }));
+        tocarSomSucesso();
+        marcarSujo(rec, CAMPOS);
+        fecharModalRasgada();
+        filtrosPortoes[portaoAlvo] = 'TODAS';
+        selecionarPortao(portaoAlvo);
+    }
+
+    function abrirMenuContextoPortao(p) {
+        portaoMenuContexto = p;
+        $('titulo-menu-portao').textContent = `Portão ${p}`;
+        const fixado = portoesFixados.has(p);
+        $('txt-acao-fixar').textContent = fixado ? 'Desafixar Portão' : 'Fixar no Início';
+        $('menu-contexto-portao').classList.remove('hidden');
+    }
+    function fecharMenuContextoPortao() {
+        $('menu-contexto-portao').classList.add('hidden');
+        portaoMenuContexto = null;
+    }
+    function executarFixarMenu() {
+        if (!portaoMenuContexto) return;
+        const p = portaoMenuContexto;
+        if (portoesFixados.has(p)) portoesFixados.delete(p);
+        else portoesFixados.add(p);
+        try { localStorage.setItem('grendene_portoes_fixados', JSON.stringify([...portoesFixados])); } catch(err) {}
+        fecharMenuContextoPortao();
+        gerarAbasPortoes();
+    }
+
+    function gerarAbasPortoes() {
+        const container = $('container-abas-portoes');
+        container.innerHTML = '';
+        const btnTodos = document.createElement('button');
+        btnTodos.id = 'btn-portao-todos';
+        btnTodos.innerHTML = '<i class="fa-solid fa-layer-group text-[11px]"></i> Todos';
+        btnTodos.onclick = () => selecionarPortao('todos');
+        container.appendChild(btnTodos);
+
+        const listaPortoes = [];
+        for (let i = PORTAO_MIN; i <= PORTAO_MAX; i++) listaPortoes.push(i);
+        listaPortoes.sort((a, b) => {
+            const fixA = portoesFixados.has(a) ? 0 : 1;
+            const fixB = portoesFixados.has(b) ? 0 : 1;
+            if (fixA !== fixB) return fixA - fixB;
+            return a - b;
+        });
+
+        listaPortoes.forEach(i => {
+            const fixado = portoesFixados.has(i);
+            const btn = document.createElement('button');
+            btn.id = `btn-portao-${i}`;
+            btn.draggable = true;
+            btn.dataset.portao = i;
+            btn.innerHTML = `
+                <i class="fa-solid fa-truck text-[10px] opacity-60"></i> P-${i} 
+                <span id="badge-rasgada-${i}" class="hidden w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                ${fixado ? '<i class="fa-solid fa-thumbtack text-[9px] text-amber-500 ml-1"></i>' : ''}
+            `;
+            btn.onclick = () => selecionarPortao(i);
+
+            let pressTimer = null;
+            btn.addEventListener('mousedown', () => { pressTimer = setTimeout(() => abrirMenuContextoPortao(i), 600); });
+            btn.addEventListener('mouseup', () => clearTimeout(pressTimer));
+            btn.addEventListener('mouseleave', () => clearTimeout(pressTimer));
+            btn.addEventListener('touchstart', () => { pressTimer = setTimeout(() => abrirMenuContextoPortao(i), 700); });
+            btn.addEventListener('touchend', () => clearTimeout(pressTimer));
+
+            btn.addEventListener('dragstart', ev => { ev.dataTransfer.setData('text/plain', i); });
+            btn.addEventListener('dragover', ev => { ev.preventDefault(); });
+            btn.addEventListener('drop', ev => {
+                ev.preventDefault();
+                const origemP = parseInt(ev.dataTransfer.getData('text/plain'));
+                if (origemP && origemP !== i) {
+                    if (!portoesFixados.has(origemP)) portoesFixados.add(origemP);
+                    try { localStorage.setItem('grendene_portoes_fixados', JSON.stringify([...portoesFixados])); } catch(err) {}
+                    gerarAbasPortoes();
+                }
+            });
+
+            container.appendChild(btn);
+        });
+        selecionarPortao(portaoAtual);
+    }
+
+    function selecionarPortao(p) {
+        portaoAtual = p;
+        const ativo = 'px-2.5 py-1.5 text-xs font-bold rounded bg-blue-600 text-white shadow-sm whitespace-nowrap cursor-pointer flex items-center gap-1.5';
+        const inativo = 'px-2.5 py-1.5 text-xs font-bold rounded ui-card hover:opacity-85 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5';
+        const elTodos = $('btn-portao-todos');
+        if (elTodos) elTodos.className = p === 'todos' ? ativo : inativo + ' border-r text-blue-500';
+        for (let i = PORTAO_MIN; i <= PORTAO_MAX; i++) {
+            const b = $(`btn-portao-${i}`);
+            if (b) b.className = (i === p) ? ativo : inativo;
+        }
+        if (p === 'todos') {
+            $('wrapper-conteudo-dinamico').classList.add('hidden');
+            $('wrapper-todos-portoes').classList.remove('hidden');
+        } else {
+            $('wrapper-todos-portoes').classList.add('hidden');
+            $('wrapper-conteudo-dinamico').classList.remove('hidden');
+            $('titulo-portao-atual').innerHTML = `<i class="fa-solid fa-truck text-blue-500"></i> Portão ${p} - Faltas`;
+            $('blocos-ordens-container').innerHTML = '';
+        }
+        renderTudo();
+    }
+
+    function inicializarDataHoje() {
+        dataAtual = hojeLocal();
+        $('input-data-controle').value = dataAtual;
+    }
+    async function mudarDataOperacional(novaData) {
+        if (!novaData) return;
+        persistirPendentes();
+        dataAtual = novaData;
+        $('select-filtro-ordem').dataset.sig = '';
+        $('blocos-ordens-container').innerHTML = '';
+        tocarSomTrocaData();
+        await carregarDia();
+    }
+    function mudarTurno(t) { turnoAtual = t; try { localStorage.setItem('grendene_turno', t); } catch (e) {} }
+    function mudarResponsavel(r) { responsavelAtual = r; try { localStorage.setItem('grendene_resp', r); } catch (e) {} ocUltimo = ''; agendarSyncOcorrencias(); }
+
+    function alternarTema() {
+        const body = document.body;
+        if (body.classList.contains('light')) {
+            body.classList.replace('light', 'dark'); $('icone-tema').className = 'fa-solid fa-sun'; localStorage.setItem('tema_grendene', 'dark');
+        } else {
+            body.classList.replace('dark', 'light'); $('icone-tema').className = 'fa-solid fa-moon'; localStorage.setItem('tema_grendene', 'light');
+        }
+    }
+    if (localStorage.getItem('tema_grendene') === 'dark') {
+        document.body.classList.replace('light', 'dark');
+        $('icone-tema').className = 'fa-solid fa-sun';
+    }
+
+    function abrirModalScannerParaCampo(campo) {
+        campoAlvoScanner = typeof campo === 'string' ? $(campo) : campo;
+        $('modal-scanner').classList.remove('hidden');
+        setTimeout(() => iniciarScanner(), 150);
+    }
+    function fecharModalScanner() {
+        $('modal-scanner').classList.add('hidden');
+        if (html5QrcodeScanner) {
+            try { if (html5QrcodeScanner.isScanning) html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear()).catch(() => {}); } catch (e) {}
+        }
+    }
+    async function iniciarScanner() {
+        if (!html5QrcodeScanner) html5QrcodeScanner = new Html5Qrcode('reader');
+        try {
+            if (html5QrcodeScanner.isScanning) return;
+            await html5QrcodeScanner.start(
+                { facingMode: 'environment' },
+                { fps: 30, qrbox: { width: 250, height: 130 } },
+                decoded => {
+                    const codigo = tratarSSCC(decoded);
+                    if (!codigo) return;
+                    tocarSomSucesso();
+                    if (navigator.vibrate) navigator.vibrate(200);
+                    if (campoAlvoScanner) {
+                        campoAlvoScanner.value = codigo;
+                        campoAlvoScanner.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    fecharModalScanner();
+                },
+                () => {}
+            );
+        } catch (err) {}
+    }
+
+    let audioCtx = null;
+    function tocarSequencia(freqs, { tipo = 'sine', passo = 0.1, dur = 0.3, vol = 0.15 } = {}) {
+        try {
+            audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            const now = audioCtx.currentTime;
+            freqs.forEach((f, i) => {
+                const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                const t = now + i * passo;
+                osc.type = tipo; osc.frequency.setValueAtTime(f, t);
+                gain.gain.setValueAtTime(vol, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(t); osc.stop(t + dur);
+            });
+        } catch (e) {}
+    }
+
+    function tocarSomCaminhaoRealista() {
+        try {
+            audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            const now = audioCtx.currentTime;
+
+            [350, 410].forEach(freq => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq, now);
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+                gain.gain.setValueAtTime(0.2, now + 0.35);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            });
+
+            const engineOsc = audioCtx.createOscillator();
+            const engineGain = audioCtx.createGain();
+            engineOsc.type = 'sawtooth';
+            engineOsc.frequency.setValueAtTime(55, now + 0.4);
+            engineOsc.frequency.linearRampToValueAtTime(130, now + 1.0);
+            engineOsc.frequency.linearRampToValueAtTime(85, now + 2.4);
+
+            engineGain.gain.setValueAtTime(0, now + 0.4);
+            engineGain.gain.linearRampToValueAtTime(0.22, now + 0.6);
+            engineGain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+
+            engineOsc.connect(engineGain);
+            engineGain.connect(audioCtx.destination);
+            engineOsc.start(now + 0.4);
+            engineOsc.stop(now + 2.5);
+
+            const bufferSize = audioCtx.sampleRate * 1.2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(900, now + 1.8);
+            filter.Q.setValueAtTime(4, now + 1.8);
+
+            const noiseGain = audioCtx.createGain();
+            noiseGain.gain.setValueAtTime(0, now + 1.8);
+            noiseGain.gain.linearRampToValueAtTime(0.25, now + 1.9);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
+
+            noise.connect(filter);
+            filter.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noise.start(now + 1.8);
+            noise.stop(now + 2.8);
+
+        } catch (e) {}
+    }
+
+    const tocarSomSucesso = () => tocarSequencia([587.33, 880], { passo: 0.1, dur: 0.2 });
+    const tocarSomConquistaAnimada = () => tocarSequencia([523.25, 659.25, 783.99, 1046.5], { tipo: 'triangle', passo: 0.08, dur: 0.25 });
+    const tocarSomTrocaData = () => tocarSequencia([440, 554.37], { passo: 0.12, dur: 0.25, vol: 0.1 });
+
+    function exportarExcel() {
+        const wb = XLSX.utils.book_new();
+        let temDados = false;
+        for (let i = PORTAO_MIN; i <= PORTAO_MAX; i++) {
+            const lista = Array.from(recs.values()).filter(r => r.portao === i && r.sscc.trim()).sort(comparaRec);
+            if (!lista.length) continue;
+            temDados = true;
+            const linhas = [{ 'SSCC': `Portão ${i} (${dataAtual})`, 'Status': '', 'Requisitada?': '', 'Origem': '', 'Ordem': '', 'Prioridade': '', 'No App?': '', 'Observação': '' }];
+            lista.filter(r => r.kind === 'falta').forEach(r => linhas.push({ 'SSCC': r.sscc, 'Status': rotuloStatus(r.status), 'Requisitada?': r.requisitada || 'Não', 'Origem': r.origem, 'Ordem': r.ordem, 'Prioridade': r.cor, 'No App?': r.noApp, 'Observação': r.obs }));
+            lista.filter(r => r.kind === 'rasgada').forEach(r => linhas.push({ 'SSCC': r.sscc, 'Status': `${rotuloStatus(r.status)} (Rasgada ${tipoDaObs(r.obs)})`, 'Requisitada?': 'Sim', 'Origem': r.origem, 'Ordem': r.ordem, 'Prioridade': 'vermelho', 'No App?': 'Sim', 'Observação': r.obs }));
+            const ws = XLSX.utils.json_to_sheet(linhas);
+            ws['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 15 }, { wch: 22 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 35 }];
+            XLSX.utils.book_append_sheet(wb, ws, `Portão ${i}`);
+        }
+        if (!temDados) { alert('Nenhum dado encontrado para exportar.'); return; }
+        XLSX.writeFile(wb, `Controle_Carregamento_${dataAtual}.xlsx`);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const r = localStorage.getItem('grendene_resp'); if (r) { responsavelAtual = r; $('select-responsavel').value = r; }
+            const t = localStorage.getItem('grendene_turno'); if (t) { turnoAtual = t; $('select-turno').value = t; }
+        } catch (e) {}
+        inicializarDataHoje();
+        gerarAbasPortoes();
+        popularSelectPortoesModal();
+        ligarEventos($('blocos-ordens-container'));
+        selecionarPortao(7);
+        await carregarDia();
+
+        setInterval(() => {
+            if (portaoAtual !== 'todos') {
+                document.querySelectorAll('[data-role="cronometro-bloco"]').forEach(el => {
+                    const blocoEl = el.closest('.bloco');
+                    if (blocoEl && blocoEl.dataset.k) {
+                        const chaveT = `${portaoAtual}_${blocoEl.dataset.k}`;
+                        const inicio = ordensTimestamps[chaveT] || Date.now();
+                        const ehFinalizado = ordensFinalizadas.has(blocoEl.dataset.k);
+                        const msAtivo = ehFinalizado ? (ordensTemposFechados[blocoEl.dataset.k] || (Date.now() - inicio)) : (Date.now() - inicio);
+                        const txtEl = el.querySelector('[data-role="tempo-texto"]');
+                        if (txtEl) txtEl.textContent = formatarTempoDecorrido(msAtivo);
+                    }
+                });
+            }
+        }, 1000);
+    });
     </script>
 </body>
 </html>
