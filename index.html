@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de caixas Aproveitadas - Grendene</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        github: {
+                            bg: '#0d1117',
+                            card: '#161b22',
+                            border: '#30363d',
+                            text: '#c9d1d9',
+                            muted: '#8b949e',
+                            accent: '#238636',
+                            accentHover: '#2ea043'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Html5-Qrcode -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <!-- SheetJS (Exportação para Excel) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+        .scanner-frame { position: relative; overflow: hidden; border-radius: 8px; border: 1px solid #30363d; }
+    </style>
+</head>
+<body class="min-h-full flex flex-col justify-between">
+
+    <!-- CABEÇALHO -->
+    <header class="bg-github-card border-b border-github-border sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-4">
+                <img src="https://logodownload.org/wp-content/uploads/2022/10/grendene-logo-0.png" alt="Grendene" class="h-7 w-auto object-contain bg-white p-1 rounded">
+                <div class="border-l border-github-border pl-4">
+                    <h1 class="text-base font-bold text-white leading-tight">Controle de caixas Aproveitadas</h1>
+                    <p class="text-xs font-semibold text-blue-400">Portão 1 CD</p>
+                    <p class="text-[11px] text-github-muted">Rastreio de ETQ Padrão e Exportação</p>
+                </div>
+            </div>
+
+            <button onclick="abrirModalRegistro()" class="bg-github-accent hover:bg-github-accentHover text-white px-3.5 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 border border-green-600 shadow-sm transition-colors cursor-pointer">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>Registar ETQ</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="max-w-7xl w-full mx-auto p-4 flex-grow">
+
+        <!-- PAINEL DE CONTROLE E BUSCA -->
+        <div class="bg-github-card border border-github-border rounded-lg p-4 mb-6 flex flex-col md:flex-row gap-3 justify-between items-center">
+            
+            <div class="relative w-full md:w-96">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-github-muted text-xs"></i>
+                <input type="text" id="campo-busca" oninput="filtrarTabelas()" placeholder="Buscar por código ETQ..." class="w-full pl-8 pr-3 py-1.5 bg-github-bg border border-github-border rounded-md text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
+            </div>
+
+            <div class="flex items-center gap-3 text-xs font-mono w-full md:w-auto justify-end flex-wrap">
+                <span class="bg-github-bg px-2.5 py-1 rounded border border-github-border">
+                    Total Padrão: <strong id="total-padrao" class="text-emerald-400">0</strong> (Hoje: <strong id="hoje-padrao" class="text-emerald-300">0</strong>)
+                </span>
+                <span class="bg-github-bg px-2.5 py-1 rounded border border-github-border">
+                    Total Exportação: <strong id="total-exportacao" class="text-blue-400">0</strong> (Hoje: <strong id="hoje-exportacao" class="text-blue-300">0</strong>)
+                </span>
+            </div>
+        </div>
+
+        <!-- GRID COM DUAS TABELAS SEPARADAS -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- TABELA 1: ETQ PADRÃO -->
+            <div class="bg-github-card border border-github-border rounded-lg overflow-hidden shadow-sm flex flex-col">
+                <div class="bg-emerald-950/40 border-b border-github-border px-4 py-2.5 flex justify-between items-center">
+                    <h2 class="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-barcode"></i> ETQ Padrão Aproveitadas
+                    </h2>
+                    <span id="badge-padrao" class="bg-emerald-900/60 text-emerald-200 border border-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-mono">0</span>
+                </div>
+                <div class="overflow-x-auto flex-grow">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-github-bg border-b border-github-border text-github-muted font-mono uppercase">
+                            <tr>
+                                <th class="p-3">Código ETQ</th>
+                                <th class="p-3">Local</th>
+                                <th class="p-3">Motivo</th>
+                                <th class="p-3">Data</th>
+                                <th class="p-3 text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-padrao" class="divide-y divide-github-border">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="vazio-padrao" class="p-6 text-center text-github-muted hidden">
+                    <p class="text-xs">Nenhum registo Padrão encontrado.</p>
+                </div>
+            </div>
+
+            <!-- TABELA 2: ETQ EXPORTAÇÃO -->
+            <div class="bg-github-card border border-github-border rounded-lg overflow-hidden shadow-sm flex flex-col">
+                <div class="bg-blue-950/40 border-b border-github-border px-4 py-2.5 flex justify-between items-center">
+                    <h2 class="text-xs font-bold text-blue-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-earth-americas"></i> ETQ Exportação Aproveitadas
+                    </h2>
+                    <span id="badge-exportacao" class="bg-blue-900/60 text-blue-200 border border-blue-800 text-[10px] px-2 py-0.5 rounded-full font-mono">0</span>
+                </div>
+                <div class="overflow-x-auto flex-grow">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-github-bg border-b border-github-border text-github-muted font-mono uppercase">
+                            <tr>
+                                <th class="p-3">Código ETQ</th>
+                                <th class="p-3">Local</th>
+                                <th class="p-3">Motivo</th>
+                                <th class="p-3">Data</th>
+                                <th class="p-3 text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-exportacao" class="divide-y divide-github-border">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="vazio-exportacao" class="p-6 text-center text-github-muted hidden">
+                    <p class="text-xs">Nenhum registo de Exportação encontrado.</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- RODAPÉ FIXO -->
+    <footer class="bg-github-card border-t border-github-border mt-8 py-3 no-print">
+        <div class="max-w-7xl mx-auto px-4 flex justify-between items-center text-xs">
+            <span class="text-github-muted font-mono flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Supabase Conectado</span>
+            </span>
+            <button onclick="exportarExcel()" class="bg-github-bg hover:bg-gray-800 text-white px-3 py-1.5 rounded border border-github-border flex items-center gap-2 font-medium transition-colors cursor-pointer">
+                <i class="fa-solid fa-file-excel text-emerald-500"></i>
+                <span>Baixar Relatório (Excel)</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- MODAL DE REGISTRO RÁPIDO -->
+    <div id="modal-registro" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-github-card border border-github-border rounded-lg max-w-md w-full p-5 shadow-2xl">
+            
+            <div class="flex justify-between items-center pb-3 border-b border-github-border mb-4">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-barcode text-github-accent"></i> Registo de Caixa Aproveitada
+                </h3>
+                <button type="button" onclick="fecharModalRegistro()" class="text-github-muted hover:text-white p-1.5 rounded-md hover:bg-github-bg transition-colors cursor-pointer">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- MENSAGEM DE ALERTA -->
+            <div id="alerta-scanner" class="mb-3 hidden p-2 rounded text-xs font-semibold text-center transition-all"></div>
+
+            <form id="form-sscc" onsubmit="salvarRegistro(event)" class="space-y-3">
+                
+                <!-- TIPO DE ETQ -->
+                <div>
+                    <label class="block text-xs font-medium text-github-muted mb-1">Tipo de Registo:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="border border-github-border bg-github-bg p-2 rounded flex items-center gap-2 cursor-pointer hover:border-emerald-500">
+                            <input type="radio" name="tipo_sscc" value="padrao" checked onchange="mudarTipoSSCC('padrao')" class="text-emerald-600 focus:ring-0">
+                            <span class="text-xs font-bold text-emerald-400">ETQ Padrão</span>
+                        </label>
+                        <label class="border border-github-border bg-github-bg p-2 rounded flex items-center gap-2 cursor-pointer hover:border-blue-500">
+                            <input type="radio" name="tipo_sscc" value="exportacao" onchange="mudarTipoSSCC('exportacao')" class="text-blue-600 focus:ring-0">
+                            <span class="text-xs font-bold text-blue-400">ETQ Exportação</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- SCANNER -->
+                <div id="container-scanner" class="mb-2">
+                    <div id="reader" class="scanner-frame bg-black w-full min-h-[140px]"></div>
+                </div>
+
+                <!-- CAMPO CÓDIGO ETQ -->
+                <div>
+                    <label id="label-codigo-sscc" class="block text-xs font-medium text-github-muted mb-1">Código ETQ Padrão:</label>
+                    <input type="text" id="input-sscc" placeholder="Bipe ou digite o código..." autocomplete="off" class="w-full bg-github-bg border border-github-border rounded-md px-3 py-2 text-xs font-mono text-emerald-400 focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <!-- LOCALIZAÇÃO -->
+                <div>
+                    <label class="block text-xs font-medium text-github-muted mb-1">Localização:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="border border-github-border bg-github-bg p-2 rounded flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="localizacao" value="Porta Pallet" checked class="text-blue-600 focus:ring-0">
+                            <span class="text-xs font-medium text-white">Porta Pallet</span>
+                        </label>
+                        <label class="border border-github-border bg-github-bg p-2 rounded flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="localizacao" value="Sorter" class="text-blue-600 focus:ring-0">
+                            <span class="text-xs font-medium text-white">Sorter</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- MOTIVO -->
+                <div>
+                    <label class="block text-xs font-medium text-github-muted mb-1">Motivo do Aproveitamento:</label>
+                    <select id="select-motivo" class="w-full bg-github-bg border border-github-border rounded-md px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                        <option value="Faltas sem saldo pra requisitar">Faltas sem saldo pra requisitar</option>
+                        <option value="Ordem com muito tempo de permanência">Ordem com muito tempo de permanência</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+
+                <!-- BOTÕES DE AÇÃO -->
+                <div class="flex justify-end gap-2 pt-3 border-t border-github-border">
+                    <button type="button" onclick="fecharModalRegistro()" class="px-3 py-1.5 border border-github-border bg-github-bg text-github-muted hover:text-white rounded-md text-xs transition-colors cursor-pointer">Fechar</button>
+                    <button type="submit" id="btn-submit" class="bg-github-accent hover:bg-github-accentHover text-white px-4 py-1.5 rounded-md text-xs font-bold shadow-sm cursor-pointer">Salvar Registo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LÓGICA DO SISTEMA -->
+    <script>
+        const SUPABASE_URL = 'https://mdrhviciouopctcbpotr.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_Zs7XKc999RsKCgqRFBPigQ__aYnbqGq';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let dadosPadrao = [];
+        let dadosExportacao = [];
+        let html5QrcodeScanner = null;
+        let ultimoCodigoLido = "";
+        let tempoUltimaLeitura = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarDados();
+            inscreverRealtime();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') fecharModalRegistro();
+        });
+
+        document.getElementById('modal-registro').addEventListener('click', (e) => {
+            if (e.target.id === 'modal-registro') fecharModalRegistro();
+        });
+
+        function mudarTipoSSCC(tipo) {
+            const input = document.getElementById('input-sscc');
+            const label = document.getElementById('label-codigo-sscc');
+            if (tipo === 'padrao') {
+                label.innerText = "Código ETQ Padrão:";
+                input.className = "w-full bg-github-bg border border-github-border rounded-md px-3 py-2 text-xs font-mono text-emerald-400 focus:outline-none focus:border-emerald-500";
+            } else {
+                label.innerText = "Código ETQ Exportação:";
+                input.className = "w-full bg-github-bg border border-github-border rounded-md px-3 py-2 text-xs font-mono text-blue-400 focus:outline-none focus:border-blue-500";
+            }
+            input.focus();
+        }
+
+        function tratarCodigoSSCC(codigo) {
+            if (!codigo) return '';
+            let limpo = codigo.trim();
+            limpo = limpo.replace(/^\][A-Za-z]\d+/, '');
+            limpo = limpo.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+            return limpo.trim();
+        }
+
+        function tocarBipAlegre() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);       
+                osc.frequency.setValueAtTime(659.25, now + 0.08); 
+                osc.frequency.setValueAtTime(783.99, now + 0.16); 
+                osc.frequency.setValueAtTime(1046.50, now + 0.24); 
+
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } catch (e) {}
+        }
+
+        function tocarSomErro() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.setValueAtTime(150, now + 0.15);
+
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } catch (e) {}
+        }
+
+        function mostrarAviso(mensagem, tipo = 'sucesso') {
+            const alertaEl = document.getElementById('alerta-scanner');
+            alertaEl.innerText = mensagem;
+            alertaEl.className = `mb-3 p-2 rounded text-xs font-semibold text-center transition-all ${
+                tipo === 'sucesso' 
+                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' 
+                : 'bg-amber-950 text-amber-300 border border-amber-800'
+            }`;
+            alertaEl.classList.remove('hidden');
+            setTimeout(() => { alertaEl.classList.add('hidden'); }, 3000);
+        }
+
+        function inscreverRealtime() {
+            supabaseClient
+                .channel('mudancas_geral')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'caixas_padrao' }, () => carregarDados())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'caixas_exportacao' }, () => carregarDados())
+                .subscribe();
+        }
+
+        async function carregarDados() {
+            const resPadrao = await supabaseClient.from('caixas_padrao').select('*').order('created_at', { ascending: false });
+            const resExp = await supabaseClient.from('caixas_exportacao').select('*').order('created_at', { ascending: false });
+
+            dadosPadrao = (resPadrao.data || []).map(item => ({
+                id: item.id,
+                sscc: item.sscc,
+                localizacao: item.localizazione,
+                motivo: item.motivo,
+                dataRegistro: item.data_registro,
+                createdAt: item.created_at
+            }));
+
+            dadosExportacao = (resExp.data || []).map(item => ({
+                id: item.id,
+                sscc: item.sscc_exportacao,
+                localizacao: item.localizazione,
+                motivo: item.motivo,
+                dataRegistro: item.data_registro,
+                createdAt: item.created_at
+            }));
+
+            renderizarTabelas();
+        }
+
+        async function salvarRegistro(e) {
+            e.preventDefault(); // Impede o recarregamento nativo da página
+            
+            const tipo = document.querySelector('input[name="tipo_sscc"]:checked').value;
+            const inputSscc = document.getElementById('input-sscc');
+            const localizacao = document.querySelector('input[name="localizacao"]:checked').value;
+            const motivo = document.getElementById('select-motivo').value;
+
+            let codigoVal = tratarCodigoSSCC(inputSscc.value);
+            if (!codigoVal) {
+                alert("Insira ou bipe o código ETQ!");
+                inputSscc.focus();
+                return;
+            }
+
+            const jaExistePadrao = dadosPadrao.some(r => r.sscc === codigoVal);
+            const jaExisteExp = dadosExportacao.some(r => r.sscc === codigoVal);
+
+            if (jaExistePadrao || jaExisteExp) {
+                tocarSomErro();
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                mostrarAviso(`⚠️ O código ETQ ${codigoVal} já se encontra registado no sistema!`, 'erro');
+                return;
+            }
+
+            const hojeStr = new Date().toISOString().split('T')[0];
+            let error = null;
+
+            if (tipo === 'padrao') {
+                const res = await supabaseClient.from('caixas_padrao').insert([{
+                    sscc: codigoVal,
+                    localizazione: localizacao,
+                    motivo: motivo,
+                    data_registro: hojeStr
+                }]);
+                error = res.error;
+            } else {
+                const res = await supabaseClient.from('caixas_exportacao').insert([{
+                    sscc_exportacao: codigoVal,
+                    localizazione: localizacao,
+                    motivo: motivo,
+                    data_registro: hojeStr
+                }]);
+                error = res.error;
+            }
+
+            if (error) {
+                if (error.code === '23505') {
+                    tocarSomErro();
+                    mostrarAviso("⚠️ Este código já existe na base de dados!", "erro");
+                } else {
+                    alert("Erro ao gravar: " + error.message);
+                }
+                return;
+            }
+
+            tocarBipAlegre();
+            if (navigator.vibrate) navigator.vibrate(200);
+            mostrarAviso("✓ Caixa aproveitada registada com sucesso!", "sucesso");
+
+            inputSscc.value = '';
+            inputSscc.focus();
+            carregarDados();
+        }
+
+        async function deletarRegistro(tipo, id) {
+            if (confirm("Deseja remover este registo?")) {
+                const tabela = tipo === 'padrao' ? 'caixas_padrao' : 'caixas_exportacao';
+                const { error } = await supabaseClient.from(tabela).delete().eq('id', id);
+
+                if (error) {
+                    alert("Erro ao remover registo.");
+                    return;
+                }
+                carregarDados();
+            }
+        }
+
+        function renderizarTabelas() {
+            const hojeStr = new Date().toISOString().split('T')[0];
+
+            const tbodyPadrao = document.getElementById('tabela-padrao');
+            const vazioPadrao = document.getElementById('vazio-padrao');
+            tbodyPadrao.innerHTML = '';
+
+            let hojePadraoCount = 0;
+
+            if (dadosPadrao.length === 0) {
+                vazioPadrao.classList.remove('hidden');
+            } else {
+                vazioPadrao.classList.add('hidden');
+                dadosPadrao.forEach(r => {
+                    if (r.dataRegistro === hojeStr) hojePadraoCount++;
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-github-bg/50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-3 font-mono font-bold text-emerald-400"><i class="fa-solid fa-barcode mr-1"></i> ${r.sscc}</td>
+                        <td class="p-3 text-gray-300 font-sans">${r.localizacao}</td>
+                        <td class="p-3 text-github-muted font-sans" title="${r.motivo}">${r.motivo}</td>
+                        <td class="p-3 text-github-muted font-mono">${r.dataRegistro || '-'}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="deletarRegistro('padrao', '${r.id}')" class="text-github-muted hover:text-red-400 px-2 py-1 transition-colors cursor-pointer" title="Remover">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbodyPadrao.appendChild(tr);
+                });
+            }
+
+            const tbodyExp = document.getElementById('tabela-exportacao');
+            const vazioExp = document.getElementById('vazio-exportacao');
+            tbodyExp.innerHTML = '';
+
+            let hojeExpCount = 0;
+
+            if (dadosExportacao.length === 0) {
+                vazioExp.classList.remove('hidden');
+            } else {
+                vazioExp.classList.add('hidden');
+                dadosExportacao.forEach(r => {
+                    if (r.dataRegistro === hojeStr) hojeExpCount++;
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-github-bg/50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-3 font-mono font-bold text-blue-400"><i class="fa-solid fa-earth-americas mr-1"></i> ${r.sscc}</td>
+                        <td class="p-3 text-gray-300 font-sans">${r.localizacao}</td>
+                        <td class="p-3 text-github-muted font-sans" title="${r.motivo}">${r.motivo}</td>
+                        <td class="p-3 text-github-muted font-mono">${r.dataRegistro || '-'}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="deletarRegistro('exportacao', '${r.id}')" class="text-github-muted hover:text-red-400 px-2 py-1 transition-colors cursor-pointer" title="Remover">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbodyExp.appendChild(tr);
+                });
+            }
+
+            document.getElementById('total-padrao').innerText = dadosPadrao.length;
+            document.getElementById('hoje-padrao').innerText = hojePadraoCount;
+            document.getElementById('total-exportacao').innerText = dadosExportacao.length;
+            document.getElementById('hoje-exportacao').innerText = hojeExpCount;
+
+            document.getElementById('badge-padrao').innerText = dadosPadrao.length;
+            document.getElementById('badge-exportacao').innerText = dadosExportacao.length;
+        }
+
+        function filtrarTabelas() {
+            const termo = document.getElementById('campo-busca').value.toLowerCase();
+            if (!termo) {
+                renderizarTabelas();
+                return;
+            }
+
+            const filtradosPadrao = dadosPadrao.filter(r => r.sscc.toLowerCase().includes(termo));
+            const filtradosExp = dadosExportacao.filter(r => r.sscc.toLowerCase().includes(termo));
+
+            const tbodyPadrao = document.getElementById('tabela-padrao');
+            tbodyPadrao.innerHTML = '';
+            filtradosPadrao.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-github-bg/50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3 font-mono font-bold text-emerald-400">${r.sscc}</td>
+                    <td class="p-3 text-gray-300">${r.localizacao}</td>
+                    <td class="p-3 text-github-muted">${r.motivo}</td>
+                    <td class="p-3 text-github-muted font-mono">${r.dataRegistro || '-'}</td>
+                    <td class="p-3 text-right"><button onclick="deletarRegistro('padrao', '${r.id}')" class="text-github-muted hover:text-red-400"><i class="fa-solid fa-trash"></i></button></td>
+                `;
+                tbodyPadrao.appendChild(tr);
+            });
+
+            const tbodyExp = document.getElementById('tabela-exportacao');
+            tbodyExp.innerHTML = '';
+            filtradosExp.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-github-bg/50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3 font-mono font-bold text-blue-400">${r.sscc}</td>
+                    <td class="p-3 text-gray-300">${r.localizacao}</td>
+                    <td class="p-3 text-github-muted">${r.motivo}</td>
+                    <td class="p-3 text-github-muted font-mono">${r.dataRegistro || '-'}</td>
+                    <td class="p-3 text-right"><button onclick="deletarRegistro('exportacao', '${r.id}')" class="text-github-muted hover:text-red-400"><i class="fa-solid fa-trash"></i></button></td>
+                `;
+                tbodyExp.appendChild(tr);
+            });
+        }
+
+        async function iniciarScanner() {
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5Qrcode("reader");
+            }
+
+            try {
+                await html5QrcodeScanner.start(
+                    { facingMode: "environment" },
+                    { fps: 30, qrbox: { width: 230, height: 130 } },
+                    (decodedText) => {
+                        const codigoTratado = tratarCodigoSSCC(decodedText);
+                        const agora = Date.now();
+
+                        if (codigoTratado.length >= 10) {
+                            if (codigoTratado !== ultimoCodigoLido || (agora - tempoUltimaLeitura > 2500)) {
+                                ultimoCodigoLido = codigoTratado;
+                                tempoUltimaLeitura = agora;
+
+                                document.getElementById('input-sscc').value = codigoTratado;
+                                tocarBipAlegre();
+                                if (navigator.vibrate) navigator.vibrate(100);
+                            }
+                        }
+                    },
+                    () => {}
+                );
+            } catch (err) {
+                console.log("Câmera já ativa ou erro ao iniciar.");
+            }
+        }
+
+        function pararScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().catch(() => {});
+            }
+        }
+
+        function exportarExcel() {
+            if (dadosPadrao.length === 0 && dadosExportacao.length === 0) {
+                alert("Não há dados para exportar.");
+                return;
+            }
+
+            const workbook = XLSX.utils.book_new();
+
+            if (dadosPadrao.length > 0) {
+                const excelPadrao = dadosPadrao.map(r => ({
+                    "ETQ Padrão": r.sscc,
+                    "Localização": r.localizacao,
+                    "Motivo": r.motivo,
+                    "Data do Registo": r.dataRegistro
+                }));
+                const wsPadrao = XLSX.utils.json_to_sheet(excelPadrao);
+                XLSX.utils.book_append_sheet(workbook, wsPadrao, "ETQ Padrão");
+            }
+
+            if (dadosExportacao.length > 0) {
+                const excelExp = dadosExportacao.map(r => ({
+                    "ETQ Exportação": r.sscc,
+                    "Localização": r.localizacao,
+                    "Motivo": r.motivo,
+                    "Data do Registo": r.dataRegistro
+                }));
+                const wsExp = XLSX.utils.json_to_sheet(excelExp);
+                XLSX.utils.book_append_sheet(workbook, wsExp, "ETQ Exportação");
+            }
+
+            const dataHoje = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(workbook, `Controle_Caixas_Aproveitadas_Portao1CD_${dataHoje}.xlsx`);
+        }
+
+        function abrirModalRegistro() {
+            document.getElementById('form-sscc').reset();
+            mudarTipoSSCC('padrao');
+            document.getElementById('modal-registro').classList.remove('hidden');
+            setTimeout(() => {
+                iniciarScanner();
+                document.getElementById('input-sscc').focus();
+            }, 100);
+        }
+
+        function fecharModalRegistro() {
+            pararScanner();
+            document.getElementById('modal-registro').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
