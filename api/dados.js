@@ -13,14 +13,23 @@ export default async function handler(req, res) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Aceita vários nomes possíveis para o parâmetro (data, date, dia)
     const dataParam = req.query.data || req.query.date || req.query.dia;
 
     let query = supabase.from('controle_faltas_portao').select('*');
 
-    // Se o frontend enviou uma data, filtra por ela. Se não enviou, traz os dados para evitar o erro.
     if (dataParam) {
-      query = query.eq('data_operacao', dataParam);
+      let altDate = dataParam;
+      // Converte automaticamente entre YYYY-MM-DD e DD/MM/YYYY para encontrar os dados na tabela
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dataParam)) {
+        const [ano, mes, dia] = dataParam.split('-');
+        altDate = `${dia}/${mes}/${ano}`;
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dataParam)) {
+        const [dia, mes, ano] = dataParam.split('/');
+        altDate = `${ano}-${mes}-${dia}`;
+      }
+
+      // Procura na base de dados por qualquer um dos dois formatos de data
+      query = query.or(`data_operacao.eq.${dataParam},data_operacao.eq.${altDate}`);
     }
 
     const { data, error } = await query;
