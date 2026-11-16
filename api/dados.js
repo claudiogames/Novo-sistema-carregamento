@@ -8,21 +8,22 @@ export default async function handler(req, res) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY_SEC;
 
     if (!supabaseUrl || !supabaseKey) {
-      return res.status(500).json({ error: "Erro de configuração: Variáveis de ambiente do Supabase em falta na Vercel." });
+      return res.status(500).json({ error: "Erro de configuração: Variáveis de ambiente em falta na Vercel." });
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: dataParam } = req.query;
-    if (!dataParam) {
-      return res.status(400).json({ error: "Data obrigatória" });
+    // Aceita vários nomes possíveis para o parâmetro (data, date, dia)
+    const dataParam = req.query.data || req.query.date || req.query.dia;
+
+    let query = supabase.from('controle_faltas_portao').select('*');
+
+    // Se o frontend enviou uma data, filtra por ela. Se não enviou, traz os dados para evitar o erro.
+    if (dataParam) {
+      query = query.eq('data_operacao', dataParam);
     }
 
-    // Usando o nome correto da coluna visto na tabela: data_operacao
-    const { data, error } = await supabase
-      .from('controle_faltas_portao')
-      .select('*')
-      .eq('data_operacao', dataParam);
+    const { data, error } = await query;
 
     if (error) {
       console.error("Erro na consulta ao Supabase:", error.message);
