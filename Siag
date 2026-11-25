@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIAG - Visualização do CD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #d9dee8;
+            color: #1e293b;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        .siag-header {
+            background-color: #2f3b52;
+            color: #ffffff;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+        }
+        .siag-sidebar {
+            background-color: #2c66a8;
+            color: #ffffff;
+            width: 250px;
+            transition: all 0.2s ease-in-out;
+        }
+        .siag-sidebar.collapsed {
+            width: 0;
+            overflow: hidden;
+        }
+        .siag-sidebar-header {
+            background-color: #22538c;
+        }
+        .siag-menu-item {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .siag-menu-item:hover {
+            background-color: #1e4b7e;
+        }
+        .siag-panel-bar {
+            background-color: #344463;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn-favorito {
+            background-color: #38a86b;
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 10px 14px;
+            border-radius: 2px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-favorito:hover {
+            background-color: #2f915b;
+        }
+        .siag-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .siag-table th {
+            background-color: #2d74b8;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 8px;
+            border-right: 1px solid #5995ce;
+            text-align: center;
+        }
+        .siag-table td {
+            font-size: 11px;
+            padding: 5px 8px;
+            border-bottom: 1px solid #cbd5e1;
+            text-align: center;
+        }
+        .siag-input {
+            background-color: #e8ecf4;
+            border: 1px solid #b8c2d4;
+            border-radius: 2px;
+            padding: 4px 8px;
+            font-size: 12px;
+            color: #334155;
+            outline: none;
+        }
+        /* Faixa de 30 Portões garantida em CSS puro */
+        .portoes-strip {
+            display: flex;
+            width: 100%;
+            min-width: 780px;
+            border: 1px solid #9aa4b2;
+        }
+        .portao-btn {
+            flex: 1;
+            height: 40px;
+            border-right: 1px solid #9aa4b2;
+            font-size: 11px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+        }
+        .portao-btn:last-child {
+            border-right: none;
+        }
+        .portao-livre {
+            background-color: #e5e7eb;
+            color: #475569;
+        }
+        .portao-bloqueado {
+            background-color: #9ca3af;
+            color: #1e293b;
+        }
+        .portao-expedindo {
+            background-color: #38a86b;
+            color: #ffffff;
+            font-weight: 700;
+        }
+        .portao-btn.selecionado {
+            box-shadow: inset 0 0 0 2px #1d4ed8;
+            font-weight: 800;
+        }
+        /* Posições Lado 1 e Lado 2 */
+        .pos-btn {
+            display: block;
+            width: 44px;
+            padding: 4px 0;
+            margin-bottom: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: center;
+            cursor: pointer;
+        }
+        .pos-ocupada {
+            background-color: #ef4444;
+            color: #ffffff;
+            border: 1px solid #b91c1c;
+        }
+        .pos-livre {
+            background-color: #e2e8f0;
+            color: #475569;
+            border: 1px solid #94a3b8;
+        }
+        .pos-selecionada {
+            outline: 2px solid #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- CABEÇALHO SUPERIOR -->
+    <header class="siag-header shadow">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:18px; cursor:pointer;" title="Menu">☰</button>
+            <button onclick="navegar('dashboard')" style="background:none; border:none; color:#cbd5e1; font-size:12px; cursor:pointer;">Início</button>
+        </div>
+
+        <div id="header-title" style="font-size:14px; font-weight:600; letter-spacing:0.3px;">
+            Visualização do CD
+        </div>
+
+        <div style="font-size:12px; color:#e2e8f0;">
+            Benilo Araujo Carneiro ▼
+        </div>
+    </header>
+
+    <!-- CORPO PRINCIPAL -->
+    <div style="display:flex; min-height:calc(100vh - 42px);">
+
+        <!-- BARRA LATERAL AZUL -->
+        <aside id="sidebar" class="siag-sidebar collapsed">
+            <div class="siag-sidebar-header" style="padding:12px; text-align:center;">
+                <div style="font-size:11px; font-weight:700; line-height:1.3;">
+                    SISTEMA INTEGRADO DE<br>ARMAZENAGEM GRENDENE
+                </div>
+            </div>
+
+            <div onclick="navegar('dashboard'); toggleSidebar();" style="padding:8px 12px; font-size:12px; font-weight:600; background:#255b99; cursor:pointer;">
+                Página Inicial
+            </div>
+
+            <div style="padding:8px; background:#3372b8;">
+                <input type="text" id="menu-search" onkeyup="filtrarMenu()" placeholder="Pesquisar" style="width:100%; padding:4px 8px; font-size:12px; color:#1e293b; border:none; border-radius:2px;">
+            </div>
+
+            <ul id="sidebar-menu-list" style="list-style:none; margin:0; padding:0;">
+                <li onclick="navegar('visualizacao'); toggleSidebar();" class="siag-menu-item">+ GESTÃO VISUAL DE VEÍCULOS</li>
+                <li onclick="navegar('consulta-caixas'); toggleSidebar();" class="siag-menu-item">+ NOVO SIAG - CONSULTAS</li>
+                <li onclick="navegar('visualizacao'); toggleSidebar();" class="siag-menu-item">+ GESTÃO VISUAL</li>
+                <li class="siag-menu-item">+ GESTÃO VISUAL - TELÕES</li>
+                <li class="siag-menu-item">+ GESTÃO VISUAL - PARÂMETROS</li>
+                <li class="siag-menu-item">+ TRANSPORTADORA</li>
+                <li onclick="navegar('visualizacao'); toggleSidebar();" class="siag-menu-item">+ MAPA DO CD</li>
+                <li onclick="navegar('visualizacao'); toggleSidebar();" class="siag-menu-item">+ EXPEDIÇÃO</li>
+                <li onclick="navegar('visualizacao'); toggleSidebar();" class="siag-menu-item">+ OPERAÇÃO DO CD</li>
+                <li class="siag-menu-item">+ RELATÓRIO</li>
+                <li class="siag-menu-item">+ PROGRAMAÇÃO</li>
+                <li class="siag-menu-item">+ SUPERVISÓRIO - SORTER</li>
+                <li class="siag-menu-item">+ SUPERVISÓRIO - MÁQUINAS</li>
+            </ul>
+        </aside>
+
+        <!-- CONTEÚDO -->
+        <main style="flex:1; padding:8px; overflow-x:hidden;">
+
+            <!-- =================================================================== -->
+            <!-- TELA VISUALIZAÇÃO DO CD                                             -->
+            <!-- =================================================================== -->
+            <section id="tela-visualizacao">
+
+                <!-- Barra de Setor + Legenda -->
+                <div style="background:#e8ecf4; border:1px solid #cbd5e1; padding:8px 10px; margin-bottom:8px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; font-size:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-weight:600; color:#334155;">Setor de Trabalho</span>
+                        <select id="select-setor" onchange="renderizarMapaPortoes()" class="siag-input" style="width:170px;">
+                            <option value="4 - Expedição" selected>4 - Expedição</option>
+                            <option value="1 - Recebimento">1 - Recebimento</option>
+                            <option value="2 - Pulmão Sorter">2 - Pulmão Sorter</option>
+                        </select>
+                        <button onclick="renderizarMapaPortoes()" style="padding:4px 8px; background:#2d74b8; color:white; border:none; border-radius:2px; cursor:pointer;" title="Atualizar">↻</button>
+                    </div>
+
+                    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; font-size:10px; font-weight:600;">
+                        <span><span style="padding:2px 5px; background:#e5e7eb; border:1px solid #94a3b8; font-family:monospace;">00016</span> Livre</span>
+                        <span><span style="padding:2px 5px; background:#fcd34d; color:#0f172a; font-family:monospace;">00000</span> Alocada</span>
+                        <span><span style="padding:2px 5px; background:#ef4444; color:#fff; font-family:monospace;">00000</span> Interrompida</span>
+                        <span><span style="padding:2px 5px; background:#9ca3af; color:#1e293b; font-family:monospace;">00011</span> Bloqueada</span>
+                        <span><span style="padding:2px 5px; background:#38a86b; color:#fff; font-family:monospace;">00003</span> Expedindo</span>
+                        <span><span style="padding:2px 5px; background:#2d74b8; color:#fff; font-family:monospace;">00000</span> Ordem Interna</span>
+                    </div>
+                </div>
+
+                <!-- FAIXA DE 30 PORTÕES (01 A 30) -->
+                <div style="background:#e8ecf4; border:1px solid #cbd5e1; padding:6px; margin-bottom:8px; overflow-x:auto;">
+                    <div id="grid-portoes" class="portoes-strip"></div>
+                </div>
+
+                <!-- ÁREA INFERIOR: LADO 1 / LADO 2 + TABELA DE PALLETS -->
+                <div style="background:#e8ecf4; border:1px solid #cbd5e1; padding:10px; display:flex; flex-wrap:wrap; gap:16px;">
+
+                    <!-- Coluna Esquerda: Lado 1 e Lado 2 -->
+                    <div style="display:flex; gap:10px; padding-top:4px;">
+                        <div>
+                            <div style="background:#2d74b8; color:white; font-size:10px; font-weight:700; padding:4px 8px; text-align:center; margin-bottom:4px;">Lado 1</div>
+                            <div id="mapa-lado1"></div>
+                        </div>
+                        <div>
+                            <div style="background:#38a86b; color:white; font-size:10px; font-weight:700; padding:4px 8px; text-align:center; margin-bottom:4px;">Lado 2</div>
+                            <div id="mapa-lado2"></div>
+                        </div>
+                    </div>
+
+                    <!-- Coluna Direita: Detalhes do Portão e Grade -->
+                    <div style="flex:1; min-width:300px;">
+                        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
+                            <div id="titulo-portao-ativo" style="font-size:12px; font-weight:700; color:#1e293b;">
+                                Portão 16 - Ordem de carregamento: 11122954
+                            </div>
+
+                            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:10px;">
+                                <span id="pct-livre" style="padding:2px 6px; background:white; border:1px solid #94a3b8; font-family:monospace;">00003 14% Livre</span>
+                                <span id="pct-reservada" style="padding:2px 6px; background:#fcd34d; color:#0f172a; font-family:monospace;">00000 0% Reservada</span>
+                                <span id="pct-ocupado" style="padding:2px 6px; background:#ef4444; color:white; font-family:monospace;">00019 86% Ocupado</span>
+                                <span id="pct-desativada" style="padding:2px 6px; background:#475569; color:white; font-family:monospace;">00000 0% Desativada</span>
+                                <span id="pct-bloqueada" style="padding:2px 6px; background:#64748b; color:white; font-family:monospace;">00000 0% Bloqueada</span>
+                                <button onclick="limparFiltroPosicao()" id="btn-limpar-pos" style="display:none; padding:2px 6px; background:#2563eb; color:white; border:none; cursor:pointer;">Mostrar todas</button>
+                                <span style="padding:2px 6px; background:#0891b2; color:white;">Filtrada</span>
+                                <button onclick="abrirModalAddPallet()" style="padding:2px 8px; background:#38a86b; color:white; font-weight:700; border:none; cursor:pointer;">+ Pallet</button>
+                            </div>
+                        </div>
+
+                        <div style="overflow-x:auto; max-height:430px; border:1px solid #cbd5e1; background:white;">
+                            <table class="siag-table">
+                                <thead style="position:sticky; top:0; z-index:5;">
+                                    <tr>
+                                        <th>Px</th>
+                                        <th>Pallet</th>
+                                        <th>Lote</th>
+                                        <th>Box</th>
+                                        <th>Endereço</th>
+                                        <th>Caixas</th>
+                                        <th>Atividade</th>
+                                        <th>Operador</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-portao-pallets"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- =================================================================== -->
+            <!-- TELA DASHBOARD (INÍCIO)                                             -->
+            <!-- =================================================================== -->
+            <section id="tela-dashboard" style="display:none;">
+                <div style="background:#e8ecf4; border:1px solid #cbd5e1; margin-bottom:10px;">
+                    <div class="siag-panel-bar"><span>Menu Favorito</span></div>
+                    <div style="padding:12px; display:flex; flex-wrap:wrap; gap:8px;">
+                        <button onclick="navegar('visualizacao')" class="btn-favorito">Visão de Embarque</button>
+                        <button onclick="navegar('visualizacao')" class="btn-favorito">Manutenção de Telões</button>
+                        <button onclick="navegar('visualizacao')" class="btn-favorito">Visualização Carregamento</button>
+                        <button onclick="navegar('consulta-caixas')" class="btn-favorito">Pallet</button>
+                        <button onclick="navegar('visualizacao')" class="btn-favorito">Visualização do CD</button>
+                        <button onclick="navegar('consulta-caixas')" class="btn-favorito">Caixas</button>
+                        <button onclick="navegar('consulta-caixas')" class="btn-favorito">Ordens</button>
+                        <button onclick="navegar('visualizacao')" class="btn-favorito">Cargas Pendente</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- =================================================================== -->
+            <!-- TELA CONSULTA CAIXAS                                                -->
+            <!-- =================================================================== -->
+            <section id="tela-consulta-caixas" style="display:none;">
+                <div style="background:#e8ecf4; border:1px solid #cbd5e1; padding:10px;">
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                        <input type="text" id="q-ordem" placeholder="Ordem" class="siag-input" style="width:140px;">
+                        <input type="text" id="q-produto" placeholder="Produto" class="siag-input" style="width:140px;">
+                        <input type="text" id="q-lote" placeholder="Lote" class="siag-input" style="width:140px;">
+                        <button onclick="executarPesquisaCaixas()" style="padding:5px 14px; background:#2d74b8; color:white; border:none; font-weight:600; cursor:pointer;">Pesquisar</button>
+                    </div>
+                    <div style="background:white; border:1px solid #cbd5e1; overflow-x:auto;">
+                        <table class="siag-table">
+                            <thead>
+                                <tr>
+                                    <th>Etiqueta (SSCC)</th><th>Ordem</th><th>Produto</th><th>Cor</th><th>Grade</th><th>Lote</th><th>Box</th><th>Pallet</th><th>Endereço</th><th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-consulta-caixas"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL ADICIONAR PALLET -->
+    <div id="modal-add-pallet" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:50; padding:16px;">
+        <div style="background:#e8ecf4; border:2px solid #344463; width:100%; max-width:400px;">
+            <div class="siag-panel-bar">
+                <span id="modal-pallet-titulo">Adicionar Pallet</span>
+                <button onclick="fecharModalAddPallet()" style="background:none; border:none; color:white; font-weight:700; cursor:pointer;">✕</button>
+            </div>
+            <form onsubmit="salvarPalletPortao(event)" style="padding:12px; font-size:12px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:3px;">Lado</label>
+                        <select id="np-lado" class="siag-input" style="width:100%;">
+                            <option value="L2">L2 (Lado 2)</option>
+                            <option value="L1">L1 (Lado 1)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:3px;">Posição (Px 01..11)</label>
+                        <input type="text" id="np-px" value="06" required class="siag-input" style="width:100%;">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px;">
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:3px;">Pallet</label>
+                        <input type="text" id="np-pallet" required placeholder="029021" class="siag-input" style="width:100%;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:3px;">Lote</label>
+                        <input type="text" id="np-lote" required value="797412" class="siag-input" style="width:100%;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:3px;">Box</label>
+                        <input type="text" id="np-box" required value="1621826" class="siag-input" style="width:100%;">
+                    </div>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="display:block; font-weight:600; margin-bottom:3px;">Caixas</label>
+                    <input type="number" id="np-caixas" required value="150" min="1" class="siag-input" style="width:100%;">
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                    <button type="button" onclick="fecharModalAddPallet()" style="padding:5px 12px; background:#cbd5e1; border:none; cursor:pointer;">Cancelar</button>
+                    <button type="submit" style="padding:5px 14px; background:#38a86b; color:white; font-weight:700; border:none; cursor:pointer;">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Storage seguro para funcionar mesmo em about:blank / sandbox
+        function lerStorage(chave) {
+            try {
+                const raw = window.localStorage.getItem(chave);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+        function gravarStorage(chave, valor) {
+            try {
+                window.localStorage.setItem(chave, JSON.stringify(valor));
+            } catch (e) {}
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        function filtrarMenu() {
+            const termo = document.getElementById('menu-search').value.toLowerCase();
+            document.querySelectorAll('#sidebar-menu-list li').forEach(function(li) {
+                li.style.display = li.textContent.toLowerCase().indexOf(termo) > -1 ? 'block' : 'none';
+            });
+        }
+
+        function navegar(tela) {
+            document.getElementById('tela-visualizacao').style.display = 'none';
+            document.getElementById('tela-dashboard').style.display = 'none';
+            document.getElementById('tela-consulta-caixas').style.display = 'none';
+
+            var headerTitle = document.getElementById('header-title');
+            if (tela === 'visualizacao') {
+                document.getElementById('tela-visualizacao').style.display = 'block';
+                headerTitle.textContent = 'Visualização do CD';
+                renderizarMapaPortoes();
+            } else if (tela === 'dashboard') {
+                document.getElementById('tela-dashboard').style.display = 'block';
+                headerTitle.textContent = 'Sistema Integrado de Armazenagem Grendene';
+            } else if (tela === 'consulta-caixas') {
+                document.getElementById('tela-consulta-caixas').style.display = 'block';
+                headerTitle.textContent = 'Consulta caixas';
+                executarPesquisaCaixas();
+            }
+        }
+
+        var STORAGE_KEY_CD = 'siag_visualizacao_cd_v3';
+        var portaoAtivo = 16;
+        var filtroPosicaoAtivo = null;
+
+        var dadosIniciaisPortao16 = [
+            { px: '04', lado: 'L2', pallet: '029021', lote: '797412', box: '1621826', caixas: 60, atividade: '', operador: '' },
+            { px: '05', lado: 'L2', pallet: '001501', lote: '797412', box: '1621826', caixas: 299, atividade: '', operador: '' },
+            { px: '06', lado: 'L2', pallet: '003057', lote: '797412', box: '1621826', caixas: 148, atividade: '', operador: '' },
+            { px: '07', lado: 'L2', pallet: '029473', lote: '797412', box: '1621826', caixas: 248, atividade: '', operador: '' },
+            { px: '08', lado: 'L2', pallet: '017578', lote: '797412', box: '1621826', caixas: 202, atividade: '', operador: '' },
+            { px: '09', lado: 'L2', pallet: '002041', lote: '797412', box: '1621826', caixas: 197, atividade: '', operador: '' },
+            { px: '10', lado: 'L2', pallet: '018551', lote: '797412', box: '1621826', caixas: 175, atividade: '', operador: '' },
+            { px: '11', lado: 'L2', pallet: '010330', lote: '797412', box: '1621826', caixas: 198, atividade: '', operador: '' },
+            { px: '01', lado: 'L1', pallet: '004640', lote: '797412', box: '1621826', caixas: 198, atividade: '', operador: '' },
+            { px: '02', lado: 'L1', pallet: '002634', lote: '797412', box: '1621826', caixas: 198, atividade: '', operador: '' },
+            { px: '03', lado: 'L1', pallet: '010094', lote: '797412', box: '1621826', caixas: 197, atividade: '', operador: '' },
+            { px: '04', lado: 'L1', pallet: '010531', lote: '797412', box: '1621826', caixas: 1, atividade: '', operador: '' },
+            { px: '05', lado: 'L1', pallet: '010916', lote: '797412', box: '1621837', caixas: 26, atividade: '', operador: '' },
+            { px: '06', lado: 'L1', pallet: '010464', lote: '797412', box: '1621826', caixas: 198, atividade: '', operador: '' }
+        ];
+
+        var estadoPortoes = lerStorage(STORAGE_KEY_CD) || {
+            16: { oc: '11122954', itens: dadosIniciaisPortao16 }
+        };
+
+        function garantirPortao(num) {
+            if (!estadoPortoes[num]) {
+                estadoPortoes[num] = {
+                    oc: String(11122900 + num),
+                    itens: [
+                        { px: '01', lado: 'L1', pallet: String(10000 + num), lote: '797412', box: '1621826', caixas: 180, atividade: '', operador: '' },
+                        { px: '02', lado: 'L1', pallet: String(10100 + num), lote: '797412', box: '1621826', caixas: 195, atividade: '', operador: '' }
+                    ]
+                };
+            }
+            return estadoPortoes[num];
+        }
+
+        function renderizarMapaPortoes() {
+            var grid = document.getElementById('grid-portoes');
+            if (!grid) return;
+
+            var bloqueados = [1, 9, 21, 22, 23, 24, 25, 27, 28, 29, 30];
+            var expedindo = [16, 17, 18];
+            var html = '';
+
+            for (var i = 1; i <= 30; i++) {
+                var num = i < 10 ? '0' + i : '' + i;
+                var cls = 'portao-btn portao-livre';
+                if (bloqueados.indexOf(i) > -1) cls = 'portao-btn portao-bloqueado';
+                if (expedindo.indexOf(i) > -1) cls = 'portao-btn portao-expedindo';
+                if (portaoAtivo === i) cls += ' selecionado';
+
+                html += '<button type="button" onclick="selecionarPortao(' + i + ')" class="' + cls + '">' + num + '</button>';
+            }
+
+            grid.innerHTML = html;
+            renderizarDetalhePortao();
+        }
+
+        function selecionarPortao(num) {
+            portaoAtivo = num;
+            filtroPosicaoAtivo = null;
+            renderizarMapaPortoes();
+        }
+
+        function limparFiltroPosicao() {
+            filtroPosicaoAtivo = null;
+            renderizarDetalhePortao();
+        }
+
+        function filtrarPorPosicao(px, lado) {
+            var chave = px + ' ' + lado;
+            filtroPosicaoAtivo = (filtroPosicaoAtivo === chave) ? null : chave;
+            renderizarDetalhePortao();
+        }
+
+        function renderizarDetalhePortao() {
+            var dadosP = garantirPortao(portaoAtivo);
+            var numStr = portaoAtivo < 10 ? '0' + portaoAtivo : '' + portaoAtivo;
+
+            document.getElementById('titulo-portao-ativo').textContent = 'Portão ' + numStr + ' - Ordem de carregamento: ' + dadosP.oc;
+            document.getElementById('btn-limpar-pos').style.display = filtroPosicaoAtivo ? 'inline-block' : 'none';
+
+            var ocupadasL1 = {};
+            var ocupadasL2 = {};
+
+            for (var j = 0; j < dadosP.itens.length; j++) {
+                var it = dadosP.itens[j];
+                var nPx = Number(it.px);
+                if (it.lado === 'L1') ocupadasL1[nPx] = true;
+                if (it.lado === 'L2') ocupadasL2[nPx] = true;
+            }
+
+            if (portaoAtivo === 16 && dadosP.itens.length === dadosIniciaisPortao16.length) {
+                for (var k = 1; k <= 11; k++) ocupadasL1[k] = true;
+                for (var m = 4; m <= 11; m++) ocupadasL2[m] = true;
+            }
+
+            var htmlL1 = '';
+            var htmlL2 = '';
+
+            for (var pos = 1; pos <= 11; pos++) {
+                var pxStr = pos < 10 ? '0' + pos : '' + pos;
+                var cls1 = 'pos-btn ' + (ocupadasL1[pos] ? 'pos-ocupada' : 'pos-livre') + (filtroPosicaoAtivo === pxStr + ' L1' ? ' pos-selecionada' : '');
+                var cls2 = 'pos-btn ' + (ocupadasL2[pos] ? 'pos-ocupada' : 'pos-livre') + (filtroPosicaoAtivo === pxStr + ' L2' ? ' pos-selecionada' : '');
+
+                htmlL1 += '<button type="button" onclick="filtrarPorPosicao(\'' + pxStr + '\', \'L1\')" class="' + cls1 + '">' + pos + '</button>';
+                htmlL2 += '<button type="button" onclick="filtrarPorPosicao(\'' + pxStr + '\', \'L2\')" class="' + cls2 + '">' + pos + '</button>';
+            }
+
+            document.getElementById('mapa-lado1').innerHTML = htmlL1;
+            document.getElementById('mapa-lado2').innerHTML = htmlL2;
+
+            var totalPos = 22;
+            var qtdOcup = dadosP.itens.length;
+            var qtdLivre = Math.max(0, totalPos - qtdOcup);
+            var pctLivre = Math.round((qtdLivre / totalPos) * 100);
+            var pctOcup = 100 - pctLivre;
+
+            document.getElementById('pct-livre').textContent = ('00000' + qtdLivre).slice(-5) + ' ' + pctLivre + '% Livre';
+            document.getElementById('pct-ocupado').textContent = ('00000' + qtdOcup).slice(-5) + ' ' + pctOcup + '% Ocupado';
+
+            var listaFiltrada = [];
+            for (var x = 0; x < dadosP.itens.length; x++) {
+                var item = dadosP.itens[x];
+                if (!filtroPosicaoAtivo || (item.px + ' ' + item.lado) === filtroPosicaoAtivo) {
+                    listaFiltrada.push({ item: item, indexReal: x });
+                }
+            }
+
+            var tbody = document.getElementById('tbody-portao-pallets');
+            if (listaFiltrada.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="padding:16px; color:#64748b;">Nenhum pallet alocado nesta posição do Portão ' + numStr + '.</td></tr>';
+                return;
+            }
+
+            var rowsHtml = '';
+            for (var r = 0; r < listaFiltrada.length; r++) {
+                var obj = listaFiltrada[r].item;
+                var idxReal = listaFiltrada[r].indexReal;
+                var badgeLado = obj.lado === 'L2'
+                    ? '<span style="display:inline-block; padding:1px 6px; border-radius:999px; background:#38a86b; color:white; font-weight:700; font-size:10px; margin-left:4px;">L2</span>'
+                    : '<span style="display:inline-block; padding:1px 6px; border-radius:999px; background:#2d74b8; color:white; font-weight:700; font-size:10px; margin-left:4px;">L1</span>';
+
+                rowsHtml += '<tr>' +
+                    '<td style="font-family:monospace; font-weight:700;">' + obj.px + badgeLado + '</td>' +
+                    '<td onclick="editarCaixas(' + idxReal + ')" title="Clique para editar caixas" style="background:#ef4444; color:white; font-family:monospace; font-weight:700; cursor:pointer;">' + obj.pallet + '</td>' +
+                    '<td style="font-family:monospace;">' + obj.lote + '</td>' +
+                    '<td style="font-family:monospace;">' + obj.box + '</td>' +
+                    '<td>Portão ' + numStr + '</td>' +
+                    '<td style="font-weight:700; font-family:monospace;">' + obj.caixas + '</td>' +
+                    '<td>' + (obj.atividade || '') + '</td>' +
+                    '<td>' + (obj.operador || '') + '</td>' +
+                '</tr>';
+            }
+
+            tbody.innerHTML = rowsHtml;
+        }
+
+        function editarCaixas(idx) {
+            var dadosP = garantirPortao(portaoAtivo);
+            var item = dadosP.itens[idx];
+            if (!item) return;
+            var novaQtd = prompt('Pallet ' + item.pallet + ' — Informe a quantidade de caixas:', item.caixas);
+            if (novaQtd !== null && !isNaN(Number(novaQtd)) && Number(novaQtd) >= 0) {
+                item.caixas = Number(novaQtd);
+                gravarStorage(STORAGE_KEY_CD, estadoPortoes);
+                renderizarDetalhePortao();
+            }
+        }
+
+        function abrirModalAddPallet() {
+            var numStr = portaoAtivo < 10 ? '0' + portaoAtivo : '' + portaoAtivo;
+            document.getElementById('modal-pallet-titulo').textContent = 'Adicionar Pallet - Portão ' + numStr;
+            document.getElementById('np-pallet').value = '';
+            document.getElementById('modal-add-pallet').style.display = 'flex';
+        }
+
+        function fecharModalAddPallet() {
+            document.getElementById('modal-add-pallet').style.display = 'none';
+        }
+
+        function salvarPalletPortao(e) {
+            e.preventDefault();
+            var dadosP = garantirPortao(portaoAtivo);
+            var pxRaw = document.getElementById('np-px').value.trim();
+            var pxPad = pxRaw.length === 1 ? '0' + pxRaw : pxRaw;
+
+            dadosP.itens.unshift({
+                lado: document.getElementById('np-lado').value,
+                px: pxPad,
+                pallet: document.getElementById('np-pallet').value.trim(),
+                lote: document.getElementById('np-lote').value.trim(),
+                box: document.getElementById('np-box').value.trim(),
+                caixas: Number(document.getElementById('np-caixas').value),
+                atividade: '',
+                operador: ''
+            });
+            gravarStorage(STORAGE_KEY_CD, estadoPortoes);
+            fecharModalAddPallet();
+            renderizarDetalhePortao();
+        }
+
+        function executarPesquisaCaixas() {
+            var tbody = document.getElementById('tbody-consulta-caixas');
+            tbody.innerHTML = '<tr><td style="font-family:monospace; font-weight:700;">00478902440972369716</td><td>11122954</td><td>38227</td><td>CF835</td><td>64807</td><td>797412</td><td>1621826</td><td>029021</td><td>Portão 16</td><td>Expedida</td></tr>';
+        }
+
+        // Inicialização garantida
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', renderizarMapaPortoes);
+        } else {
+            renderizarMapaPortoes();
+        }
+    </script>
+</body>
+</html>
