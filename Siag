@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIAG - Programação e Visualização do Carregamento</title>
+    <title>SIAG - Simulação Real de Carregamento (12 Portões / 500k Pares)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -28,7 +28,7 @@
             background-color: #263146;
             color: #cbd5e1;
             font-size: 11px;
-            padding: 5px 12px;
+            padding: 6px 12px;
             display: flex;
             flex-wrap: wrap;
             align-items: center;
@@ -40,14 +40,14 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
         }
         .tab-btn {
             background-color: #344463;
             color: #e2e8f0;
             border: 1px solid #485d85;
             border-radius: 2px;
-            padding: 4px 12px;
+            padding: 5px 12px;
             font-size: 11px;
             font-weight: 600;
             cursor: pointer;
@@ -64,7 +64,7 @@
         .siag-sidebar {
             background-color: #2c66a8;
             color: #ffffff;
-            width: 245px;
+            width: 250px;
             flex-shrink: 0;
             transition: width 0.2s ease;
         }
@@ -90,6 +90,67 @@
         .siag-menu-item:hover {
             background-color: #1e4b7e;
         }
+        /* PAINEL DE METAS E INDICADORES */
+        .kpi-strip {
+            background-color: #e8ecf4;
+            border: 1px solid #b5c0d1;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(140px, 1fr));
+            gap: 8px;
+        }
+        @media (max-width: 1020px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, minmax(140px, 1fr));
+            }
+        }
+        .kpi-card {
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-left: 4px solid #2d74b8;
+            padding: 6px 8px;
+            border-radius: 2px;
+        }
+        .kpi-card.meta-ok {
+            border-left-color: #38a86b;
+        }
+        .kpi-card.alerta {
+            border-left-color: #dc2626;
+        }
+        .kpi-titulo {
+            font-size: 10px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+        }
+        .kpi-valor {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 2px;
+            font-family: monospace;
+        }
+        .kpi-sub {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 1px;
+        }
+        .barra-progresso {
+            width: 100%;
+            height: 6px;
+            background-color: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .barra-progresso-fill {
+            height: 100%;
+            background-color: #2d74b8;
+            transition: width 0.25s linear;
+        }
         .painel-box {
             background-color: #e8ecf4;
             border: 1px solid #b5c0d1;
@@ -102,18 +163,12 @@
             font-weight: 600;
             padding: 6px 10px;
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
-        }
-        .campo-label {
-            display: block;
-            font-size: 11px;
-            color: #334155;
-            margin-bottom: 3px;
-            font-weight: 600;
+            gap: 8px;
         }
         .siag-input {
-            width: 100%;
             background-color: #ffffff;
             border: 1px solid #b5c0d1;
             border-radius: 2px;
@@ -125,33 +180,12 @@
         .siag-input:focus {
             border-color: #2d74b8;
         }
-        .grid-prog-topo {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(140px, 1fr));
-            gap: 10px 14px;
-        }
-        .grid-prog-item {
-            display: grid;
-            grid-template-columns: repeat(6, minmax(110px, 1fr));
-            gap: 8px 10px;
-            align-items: end;
-        }
-        @media (max-width: 960px) {
-            .grid-prog-item {
-                grid-template-columns: repeat(2, minmax(120px, 1fr));
-            }
-        }
-        @media (max-width: 720px) {
-            .grid-prog-topo {
-                grid-template-columns: repeat(2, minmax(130px, 1fr));
-            }
-        }
         .btn-azul {
             background-color: #2d74b8;
             color: #ffffff;
             border: 1px solid #225a91;
             border-radius: 2px;
-            padding: 6px 12px;
+            padding: 5px 11px;
             font-size: 11px;
             font-weight: 600;
             cursor: pointer;
@@ -164,7 +198,7 @@
             color: #ffffff;
             border: 1px solid #2b8754;
             border-radius: 2px;
-            padding: 7px 14px;
+            padding: 6px 12px;
             font-size: 11px;
             font-weight: 700;
             cursor: pointer;
@@ -177,7 +211,7 @@
             color: #1e293b;
             border: 1px solid #94a3b8;
             border-radius: 2px;
-            padding: 6px 12px;
+            padding: 5px 10px;
             font-size: 11px;
             font-weight: 600;
             cursor: pointer;
@@ -195,16 +229,72 @@
             color: #ffffff;
             font-size: 11px;
             font-weight: 600;
-            padding: 6px 8px;
+            padding: 6px 6px;
             border-right: 1px solid #5995ce;
             text-align: center;
         }
         .siag-table td {
             font-size: 11px;
-            padding: 5px 8px;
+            padding: 5px 6px;
             border-bottom: 1px solid #cbd5e1;
             text-align: center;
+            vertical-align: middle;
         }
+        .linha-selecionada {
+            background-color: #dbeafe !important;
+        }
+        .linha-alocada {
+            background-color: #f0fdf4;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-weight: 700;
+            font-size: 10px;
+        }
+        .badge-preparo {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #f59e0b;
+        }
+        .badge-carregando {
+            background-color: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+        }
+        .badge-fechada {
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #22c55e;
+        }
+        .badge-aguardando {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+        .mini-prog-wrap {
+            width: 92px;
+            height: 8px;
+            background-color: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+        .mini-prog-bar {
+            height: 100%;
+            background-color: #2d74b8;
+            transition: width 0.25s linear;
+        }
+        .mini-prog-bar.fechada {
+            background-color: #38a86b;
+        }
+        .mini-prog-bar.preparo {
+            background-color: #f59e0b;
+        }
+        /* FAIXA DE 12 PORTÕES */
         .portoes-wrapper {
             background: #e8ecf4;
             border: 1px solid #cbd5e1;
@@ -212,48 +302,55 @@
             margin-bottom: 8px;
             overflow-x: auto;
         }
-        .portoes-strip {
-            display: flex;
+        .portoes-strip-12 {
+            display: grid;
+            grid-template-columns: repeat(12, minmax(76px, 1fr));
             width: 100%;
-            min-width: 900px;
+            min-width: 912px;
             border: 1px solid #9aa4b2;
         }
-        .portao-btn {
-            flex: 1 0 30px;
-            height: 40px;
+        .portao-12-btn {
+            min-height: 52px;
             border: none;
             border-right: 1px solid #9aa4b2;
             font-size: 11px;
-            font-weight: 500;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            padding: 0;
+            padding: 3px 2px;
+            line-height: 1.2;
         }
-        .portao-btn:last-child {
+        .portao-12-btn:last-child {
             border-right: none;
         }
         .portao-livre {
             background-color: #e5e7eb;
-            color: #475569;
+            color: #334155;
         }
-        .portao-bloqueado {
-            background-color: #9ca3af;
+        .portao-preparo {
+            background-color: #fbbf24;
             color: #1e293b;
+            font-weight: 700;
         }
-        .portao-programado {
+        .portao-carregando {
+            background-color: #2d74b8;
+            color: #ffffff;
+            font-weight: 700;
+        }
+        .portao-fechado {
             background-color: #38a86b;
             color: #ffffff;
             font-weight: 700;
         }
-        .portao-btn.selecionado {
-            box-shadow: inset 0 0 0 2px #1d4ed8;
-            font-weight: 800;
+        .portao-12-btn.selecionado {
+            box-shadow: inset 0 0 0 2px #0f172a;
         }
+        /* COLUNAS 1 E 2 (11 POSIÇÕES CADA = 22 PALLETS) */
         .pos-btn {
             display: block;
-            width: 44px;
+            width: 46px;
             padding: 4px 0;
             margin-bottom: 3px;
             font-size: 10px;
@@ -271,6 +368,9 @@
             color: #475569;
             border: 1px solid #94a3b8;
         }
+        .pos-selecionada {
+            outline: 2px solid #1d4ed8;
+        }
     </style>
 </head>
 <body>
@@ -280,237 +380,214 @@
         <div style="display:flex; align-items:center; gap:12px;">
             <button type="button" id="btn-toggle-sidebar" style="background:none; border:none; color:white; font-size:18px; cursor:pointer;" title="Menu">☰</button>
             <span id="header-title" style="font-size:14px; font-weight:600; letter-spacing:0.3px;">
-                Programação de Carregamento
+                Programação &amp; Sequenciamento — 1 min Preparo + Ciclo Real
             </span>
         </div>
 
         <div style="font-size:12px; color:#e2e8f0;">
-            Benilo Araujo Carneiro ▼
+            Simulação Real PCP / Expedição • 8h Turno
         </div>
     </header>
 
     <!-- BARRA DE GUIAS -->
     <nav class="siag-subbar">
         <div class="tabs-barra">
-            <button type="button" id="tab-programacao" data-aba="programacao" class="tab-btn ativa">Programação</button>
-            <button type="button" id="tab-visualizacao" data-aba="visualizacao" class="tab-btn">Visualização do Carregamento</button>
+            <button type="button" id="tab-programacao" data-aba="programacao" class="tab-btn ativa">Programação (22 Ordens)</button>
+            <button type="button" id="tab-visualizacao" data-aba="visualizacao" class="tab-btn">Visualização do Carregamento (12 Portões)</button>
         </div>
         <div id="status-aviso" style="font-size:11px; color:#86efac; font-weight:600;"></div>
     </nav>
 
+    <!-- JANELA FIXA DE METAS E INDICADORES -->
+    <div class="kpi-strip">
+        <div class="kpi-grid">
+            <div id="kpi-card-pares" class="kpi-card">
+                <div class="kpi-titulo">Pares Carregados / Meta</div>
+                <div id="kpi-pares" class="kpi-valor">0 / 500.000</div>
+                <div id="kpi-pares-sub" class="kpi-sub">Carregando + Fechados • 25 pares/cx</div>
+                <div class="barra-progresso">
+                    <div id="barra-pares" class="barra-progresso-fill" style="width:0%;"></div>
+                </div>
+            </div>
+
+            <div id="kpi-card-ordens" class="kpi-card">
+                <div class="kpi-titulo">Ordens (Fechadas / Total)</div>
+                <div id="kpi-ordens" class="kpi-valor">0 / 22</div>
+                <div id="kpi-caixas-sub" class="kpi-sub">0 / 20.000 caixas carregadas</div>
+                <div class="barra-progresso">
+                    <div id="barra-ordens" class="barra-progresso-fill" style="width:0%; background:#38a86b;"></div>
+                </div>
+            </div>
+
+            <div id="kpi-card-tempo" class="kpi-card">
+                <div class="kpi-titulo">Carga de Turno (8h)</div>
+                <div id="kpi-tempo" class="kpi-valor">0,0h / 8,0h</div>
+                <div id="kpi-tempo-sub" class="kpi-sub">480 min disponíveis no dia</div>
+                <div class="barra-progresso">
+                    <div id="barra-tempo" class="barra-progresso-fill" style="width:0%; background:#d97706;"></div>
+                </div>
+            </div>
+
+            <div id="kpi-card-portoes" class="kpi-card">
+                <div class="kpi-titulo">Portões Ativos (12)</div>
+                <div id="kpi-portoes" class="kpi-valor">0 / 12</div>
+                <div id="kpi-pallets-sub" class="kpi-sub">Máx. 22 pallets/portão (Col 1 + Col 2)</div>
+            </div>
+
+            <div id="kpi-card-prazo" class="kpi-card">
+                <div class="kpi-titulo">Prazos Hoje Atendidos</div>
+                <div id="kpi-prazo" class="kpi-valor">0 / 10</div>
+                <div id="kpi-prazo-sub" class="kpi-sub">Ordens de Hoje programadas/fechadas</div>
+            </div>
+        </div>
+    </div>
+
     <!-- CORPO PRINCIPAL -->
-    <div style="display:flex; min-height:calc(100vh - 70px);">
+    <div style="display:flex; min-height:calc(100vh - 155px);">
 
         <!-- BARRA LATERAL -->
         <aside id="sidebar" class="siag-sidebar collapsed">
             <div class="siag-sidebar-header">
                 SISTEMA INTEGRADO DE<br>ARMAZENAGEM GRENDENE
             </div>
-
-            <div style="padding:8px; background:#3372b8;">
-                <input type="text" id="menu-search" placeholder="Pesquisar" style="width:100%; padding:4px 8px; font-size:12px; color:#1e293b; border:none; border-radius:2px;">
-            </div>
-
             <ul id="sidebar-menu-list" style="list-style:none; margin:0; padding:0;">
-                <li data-aba="programacao" class="siag-menu-item">+ PROGRAMAÇÃO</li>
+                <li data-aba="programacao" class="siag-menu-item">+ PROGRAMAÇÃO (22 ORDENS)</li>
                 <li data-aba="visualizacao" class="siag-menu-item">+ VISUALIZAÇÃO DO CARREGAMENTO</li>
-                <li data-aba="visualizacao" class="siag-menu-item">+ GESTÃO VISUAL DE VEÍCULOS</li>
-                <li data-aba="visualizacao" class="siag-menu-item">+ EXPEDIÇÃO</li>
             </ul>
+            <div style="padding:10px; font-size:11px; line-height:1.45; color:#dbeafe; border-top:1px solid rgba(255,255,255,0.15);">
+                <strong>Dinâmica Real de Operação:</strong><br>
+                1. Ao alocar no portão, a ordem aguarda <strong>1 minuto real (01:00)</strong> de preparo.<br>
+                2. Após 1 min, entra em <strong>Carregando</strong> e avança o progresso em tempo real.<br>
+                3. Ao concluir seu tempo de ciclo, a ordem passa para <strong>Fechada</strong>.
+            </div>
         </aside>
 
         <!-- ÁREA PRINCIPAL -->
-        <main style="flex:1; padding:8px; overflow-x:hidden;">
+        <main style="flex:1; padding:0 8px 12px 8px; overflow-x:hidden;">
 
             <!-- =================================================================== -->
-            <!-- ABA 1: PROGRAMAÇÃO                                                  -->
+            <!-- ABA 1: PROGRAMAÇÃO — 22 ORDENS PRONTAS                              -->
             <!-- =================================================================== -->
             <section id="aba-programacao">
                 <div class="painel-box">
                     <div class="siag-panel-bar">
-                        <span>Programar Ordem de Carregamento</span>
-                        <span style="font-size:11px; color:#cbd5e1;">Envia direto para a Visualização do Carregamento</span>
-                    </div>
+                        <span>Carteira de Ordens Prontas (22 Ordens = 500.000 Pares • 20.000 Caixas)</span>
+                        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
+                            <select id="filtro-prazo" class="siag-input" style="padding:4px 6px; font-size:11px;">
+                                <option value="TODOS">Todos os prazos</option>
+                                <option value="Hoje - Manhã">Hoje - Manhã</option>
+                                <option value="Hoje - Tarde">Hoje - Tarde</option>
+                                <option value="Amanhã">Amanhã</option>
+                            </select>
 
-                    <div style="padding:12px;">
-                        <!-- Cabeçalho da Programação -->
-                        <div class="grid-prog-topo" style="margin-bottom:14px;">
-                            <div>
-                                <label class="campo-label">Ordem de Carregamento (OC)</label>
-                                <input type="text" id="prog-oc" placeholder="Ex: 11122954" class="siag-input">
-                            </div>
+                            <select id="select-portao-destino" class="siag-input" style="padding:4px 6px; font-size:11px; font-weight:700;"></select>
 
-                            <div>
-                                <label class="campo-label">Portão (01 a 30)</label>
-                                <select id="prog-portao" class="siag-input"></select>
-                            </div>
+                            <button type="button" id="btn-alocar-selecionada" class="btn-verde">
+                                Alocar Ordem (1m Preparo)
+                            </button>
 
-                            <div>
-                                <label class="campo-label">Setor de Trabalho</label>
-                                <select id="prog-setor" class="siag-input">
-                                    <option value="4 - Expedição" selected>4 - Expedição</option>
-                                    <option value="1 - Recebimento">1 - Recebimento</option>
-                                    <option value="2 - Pulmão Sorter">2 - Pulmão Sorter</option>
-                                </select>
-                            </div>
+                            <button type="button" id="btn-ir-visualizacao" class="btn-azul">
+                                Ver Carregamento ▶
+                            </button>
 
-                            <div>
-                                <label class="campo-label">Transportadora / Observação</label>
-                                <input type="text" id="prog-obs" placeholder="Opcional" class="siag-input">
-                            </div>
-                        </div>
-
-                        <!-- Adicionar Itens / Pallets da Ordem -->
-                        <div style="border-top:1px solid #b5c0d1; padding-top:12px; margin-bottom:12px;">
-                            <div style="font-size:11px; font-weight:700; color:#274a7a; margin-bottom:8px;">
-                                Adicionar Pallet / Posição na Ordem
-                            </div>
-
-                            <div class="grid-prog-item">
-                                <div>
-                                    <label class="campo-label">Lado</label>
-                                    <select id="prog-lado" class="siag-input">
-                                        <option value="L1">L1 (Lado 1)</option>
-                                        <option value="L2">L2 (Lado 2)</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="campo-label">Posição (Px 01..11)</label>
-                                    <input type="text" id="prog-px" placeholder="01" class="siag-input">
-                                </div>
-
-                                <div>
-                                    <label class="campo-label">Pallet</label>
-                                    <input type="text" id="prog-pallet" placeholder="Nº Pallet" class="siag-input">
-                                </div>
-
-                                <div>
-                                    <label class="campo-label">Lote</label>
-                                    <input type="text" id="prog-lote" placeholder="Lote" class="siag-input">
-                                </div>
-
-                                <div>
-                                    <label class="campo-label">Box</label>
-                                    <input type="text" id="prog-box" placeholder="Box" class="siag-input">
-                                </div>
-
-                                <div>
-                                    <label class="campo-label">Caixas</label>
-                                    <input type="number" id="prog-caixas" min="1" placeholder="Qtd" class="siag-input">
-                                </div>
-                            </div>
-
-                            <div style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;">
-                                <button type="button" id="btn-add-item-prog" class="btn-azul">+ Incluir na Lista</button>
-                                <button type="button" id="btn-limpar-prog" class="btn-neutro">Limpar Tudo</button>
-                            </div>
-                        </div>
-
-                        <!-- Prévia da Ordem a ser Enviada -->
-                        <div style="border:1px solid #b5c0d1; background:#ffffff; overflow-x:auto; margin-bottom:12px;">
-                            <table class="siag-table">
-                                <thead>
-                                    <tr>
-                                        <th>Portão</th>
-                                        <th>OC</th>
-                                        <th>Px</th>
-                                        <th>Lado</th>
-                                        <th>Pallet</th>
-                                        <th>Lote</th>
-                                        <th>Box</th>
-                                        <th>Caixas</th>
-                                        <th>Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-fila-programacao">
-                                    <tr>
-                                        <td colspan="9" style="padding:14px; color:#64748b;">
-                                            Nenhum item adicionado ainda. Preencha os campos acima ou envie a OC direto para o portão.
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Ação Principal: Enviar para Visualização do Carregamento -->
-                        <div style="display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px;">
-                            <button type="button" id="btn-enviar-carregamento" class="btn-verde">
-                                Enviar para Visualização do Carregamento ▶
+                            <button type="button" id="btn-reset-simulacao" class="btn-neutro">
+                                Reiniciar Simulação
                             </button>
                         </div>
+                    </div>
+
+                    <div id="info-ordem-selecionada" style="padding:8px 10px; background:#f8fafc; border-bottom:1px solid #cbd5e1; font-size:11px; color:#334155;">
+                        Selecione uma ordem e escolha o portão de destino (01 a 12). Cada ordem aguarda 1 min real (01:00) de preparo antes de iniciar o carregamento.
+                    </div>
+
+                    <div style="overflow-x:auto; background:#ffffff;">
+                        <table class="siag-table">
+                            <thead>
+                                <tr>
+                                    <th>OC</th>
+                                    <th>Cliente / Rota</th>
+                                    <th>Prazo</th>
+                                    <th>Pares</th>
+                                    <th>Caixas</th>
+                                    <th>Pallets</th>
+                                    <th>Ciclo / Turno</th>
+                                    <th>Status</th>
+                                    <th>Fechamento</th>
+                                    <th>Progresso Real</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-ordens-programacao"></tbody>
+                        </table>
                     </div>
                 </div>
             </section>
 
             <!-- =================================================================== -->
-            <!-- ABA 2: VISUALIZAÇÃO DO CARREGAMENTO                                -->
+            <!-- ABA 2: VISUALIZAÇÃO DO CARREGAMENTO — 12 PORTÕES                    -->
             <!-- =================================================================== -->
             <section id="aba-visualizacao" style="display:none;">
-                <div style="background:#e8ecf4; border:1px solid #cbd5e1; padding:8px 10px; margin-bottom:8px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; font-size:12px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="font-weight:600; color:#334155;">Setor de Trabalho</span>
-                        <select id="select-setor" class="siag-input" style="width:170px;">
-                            <option value="4 - Expedição" selected>4 - Expedição</option>
-                            <option value="1 - Recebimento">1 - Recebimento</option>
-                            <option value="2 - Pulmão Sorter">2 - Pulmão Sorter</option>
-                        </select>
-                        <button type="button" id="btn-refresh-cd" class="btn-azul">↻</button>
+                <div class="painel-box" style="padding:8px 10px; margin-bottom:8px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px;">
+                    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:11px;">
+                        <strong>Setor:</strong>
+                        <span style="background:#ffffff; border:1px solid #cbd5e1; padding:3px 8px; border-radius:2px;">4 - Expedição (12 Portões)</span>
+                        <span style="color:#475569;">Amarelo: Preparo (1m) • Azul: Carregando • Verde: Fechado • Cinza: Livre</span>
                     </div>
 
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <button type="button" id="btn-voltar-programacao" class="btn-azul">+ Nova Programação</button>
-                        <button type="button" id="btn-limpar-portao-atual" class="btn-neutro">Limpar Portão</button>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                        <button type="button" id="btn-voltar-programacao" class="btn-azul">+ Alocar Mais Ordens</button>
+                        <button type="button" id="btn-desalocar-portao" class="btn-neutro">Liberar Portão Atual</button>
                     </div>
                 </div>
 
-                <!-- FAIXA DE PORTÕES 01 A 30 -->
+                <!-- FAIXA DE 12 PORTÕES -->
                 <div class="portoes-wrapper">
-                    <div id="grid-portoes" class="portoes-strip"></div>
+                    <div id="grid-portoes-12" class="portoes-strip-12"></div>
                 </div>
 
-                <!-- MAPA LADO 1 / LADO 2 + GRADE DO PORTÃO -->
-                <div style="background:#e8ecf4; border:1px solid #cbd5e1; padding:10px; display:flex; flex-wrap:wrap; gap:16px;">
-                    <div style="display:flex; gap:10px;">
+                <!-- DETALHE DO PORTÃO SELECIONADO (COLUNA 1 + COLUNA 2 = 22 PALLETS + TABELA) -->
+                <div class="painel-box" style="padding:10px; display:flex; flex-wrap:wrap; gap:16px;">
+                    <div style="display:flex; gap:12px; padding-top:4px;">
                         <div>
-                            <div style="background:#2d74b8; color:white; font-size:10px; font-weight:700; padding:4px 8px; text-align:center; margin-bottom:4px;">Lado 1</div>
-                            <div id="mapa-lado1"></div>
+                            <div style="background:#2d74b8; color:#ffffff; font-size:10px; font-weight:700; padding:4px 8px; text-align:center; margin-bottom:4px;">
+                                Coluna 1 (1-11)
+                            </div>
+                            <div id="mapa-col1"></div>
                         </div>
                         <div>
-                            <div style="background:#38a86b; color:white; font-size:10px; font-weight:700; padding:4px 8px; text-align:center; margin-bottom:4px;">Lado 2</div>
-                            <div id="mapa-lado2"></div>
+                            <div style="background:#38a86b; color:#ffffff; font-size:10px; font-weight:700; padding:4px 8px; text-align:center; margin-bottom:4px;">
+                                Coluna 2 (1-11)
+                            </div>
+                            <div id="mapa-col2"></div>
                         </div>
                     </div>
 
                     <div style="flex:1; min-width:300px;">
                         <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;">
-                            <div id="titulo-portao-ativo" style="font-size:12px; font-weight:700; color:#1e293b;">
-                                Portão 01 - Ordem de carregamento: -
+                            <div id="titulo-portao-detalhe" style="font-size:12px; font-weight:700; color:#1e293b;">
+                                Portão 01 — Livre
                             </div>
-                            <div id="resumo-portao-ativo" style="font-size:11px; font-weight:600; color:#334155;"></div>
+                            <div id="metricas-portao-detalhe" style="font-size:11px; font-weight:600; color:#334155;">
+                                Pallets: 0 / 22 • Pares: 0 • Tempo Turno: 0 min
+                            </div>
                         </div>
 
                         <div style="overflow-x:auto; border:1px solid #cbd5e1; background:#ffffff;">
                             <table class="siag-table">
                                 <thead>
                                     <tr>
-                                        <th>Px</th>
+                                        <th>Pos</th>
+                                        <th>Coluna</th>
+                                        <th>OC</th>
                                         <th>Pallet</th>
-                                        <th>Lote</th>
-                                        <th>Box</th>
-                                        <th>Endereço</th>
+                                        <th>Pares</th>
                                         <th>Caixas</th>
-                                        <th>Atividade</th>
-                                        <th>Operador</th>
+                                        <th>Status</th>
+                                        <th>Progresso</th>
+                                        <th>Ação</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tbody-portao-pallets">
-                                    <tr>
-                                        <td colspan="8" style="padding:16px; color:#64748b;">
-                                            Nenhuma ordem programada neste portão. Vá na aba Programação para enviar uma ordem.
-                                        </td>
-                                    </tr>
-                                </tbody>
+                                <tbody id="tbody-portao-detalhe"></tbody>
                             </table>
                         </div>
                     </div>
@@ -522,294 +599,638 @@
 
     <script>
         (function() {
-            var memoriaTemp = {};
+            var ORDENS_BASE = [
+                { id: 'OC-101', cliente: 'Magazine Sul - CE', prazo: 'Hoje - Manhã', caixas: 1400, pallets: 7, minutosTurno: 32, duracaoRealSeg: 600 },
+                { id: 'OC-102', cliente: 'Lojas Norte - PE', prazo: 'Hoje - Manhã', caixas: 1200, pallets: 6, minutosTurno: 28, duracaoRealSeg: 480 },
+                { id: 'OC-103', cliente: 'Calçados Ouro - SP', prazo: 'Hoje - Manhã', caixas: 1000, pallets: 5, minutosTurno: 24, duracaoRealSeg: 360 },
+                { id: 'OC-104', cliente: 'Rede Central - BA', prazo: 'Hoje - Manhã', caixas: 1600, pallets: 8, minutosTurno: 36, duracaoRealSeg: 600 },
+                { id: 'OC-105', cliente: 'Atacado Real - MG', prazo: 'Hoje - Manhã', caixas: 800,  pallets: 4, minutosTurno: 19, duracaoRealSeg: 300 },
+                { id: 'OC-106', cliente: 'Moda Praia - RJ', prazo: 'Hoje - Tarde', caixas: 1200, pallets: 6, minutosTurno: 28, duracaoRealSeg: 480 },
+                { id: 'OC-107', cliente: 'Passo Firme - RS', prazo: 'Hoje - Tarde', caixas: 1000, pallets: 5, minutosTurno: 24, duracaoRealSeg: 360 },
+                { id: 'OC-108', cliente: 'Estilo Livre - PR', prazo: 'Hoje - Tarde', caixas: 800,  pallets: 4, minutosTurno: 19, duracaoRealSeg: 300 },
+                { id: 'OC-109', cliente: 'Viva Bem - GO', prazo: 'Hoje - Tarde', caixas: 600,  pallets: 3, minutosTurno: 15, duracaoRealSeg: 300 },
+                { id: 'OC-110', cliente: 'Sol Nascente - RN', prazo: 'Hoje - Tarde', caixas: 600,  pallets: 3, minutosTurno: 15, duracaoRealSeg: 300 },
+                { id: 'OC-111', cliente: 'Centro Oeste - MT', prazo: 'Amanhã', caixas: 1000, pallets: 5, minutosTurno: 24, duracaoRealSeg: 420 },
+                { id: 'OC-112', cliente: 'Vale Verde - SC', prazo: 'Amanhã', caixas: 800,  pallets: 4, minutosTurno: 19, duracaoRealSeg: 300 },
+                { id: 'OC-113', cliente: 'Costa Azul - ES', prazo: 'Amanhã', caixas: 800,  pallets: 4, minutosTurno: 19, duracaoRealSeg: 300 },
+                { id: 'OC-114', cliente: 'Brisa Mar - AL', prazo: 'Amanhã', caixas: 600,  pallets: 3, minutosTurno: 15, duracaoRealSeg: 300 },
+                { id: 'OC-115', cliente: 'Serra Gaúcha - RS', prazo: 'Amanhã', caixas: 1000, pallets: 5, minutosTurno: 24, duracaoRealSeg: 420 },
+                { id: 'OC-116', cliente: 'Nova Era - SP', prazo: 'Amanhã', caixas: 1200, pallets: 6, minutosTurno: 28, duracaoRealSeg: 480 },
+                { id: 'OC-117', cliente: 'Portal do Sol - PI', prazo: 'Amanhã', caixas: 600,  pallets: 3, minutosTurno: 15, duracaoRealSeg: 300 },
+                { id: 'OC-118', cliente: 'Ponto Alto - DF', prazo: 'Amanhã', caixas: 800,  pallets: 4, minutosTurno: 19, duracaoRealSeg: 300 },
+                { id: 'OC-119', cliente: 'Rota Leste - SE', prazo: 'Amanhã', caixas: 600,  pallets: 3, minutosTurno: 15, duracaoRealSeg: 300 },
+                { id: 'OC-120', cliente: 'Horizonte - PA', prazo: 'Amanhã', caixas: 800,  pallets: 4, minutosTurno: 19, duracaoRealSeg: 300 },
+                { id: 'OC-121', cliente: 'União Sul - SC', prazo: 'Amanhã', caixas: 800,  pallets: 4, minutosTurno: 19, duracaoRealSeg: 300 },
+                { id: 'OC-122', cliente: 'Foz do Iguaçu - PR', prazo: 'Amanhã', caixas: 1000, pallets: 5, minutosTurno: 24, duracaoRealSeg: 420 }
+            ];
 
-            function lerStorage(chave) {
-                try {
-                    if (window.localStorage) {
-                        var raw = window.localStorage.getItem(chave);
-                        if (raw) return JSON.parse(raw);
-                    }
-                } catch (e) {}
-                return memoriaTemp[chave] || null;
-            }
+            var PARES_POR_CAIXA = 25;
+            var META_PARES = 500000;
+            var META_ORDENS = 22;
+            var MINUTOS_DISPONIVEIS = 480;
+            var MAX_PALLETS_PORTAO = 22;
+            var PREPARO_SEGUNDOS = 60; // 1 minuto real de preparo
 
-            function gravarStorage(chave, valor) {
-                memoriaTemp[chave] = valor;
-                try {
-                    if (window.localStorage) {
-                        window.localStorage.setItem(chave, JSON.stringify(valor));
-                    }
-                } catch (e) {}
-            }
+            var ordemSelecionadaId = 'OC-101';
+            var portaoDestinoSelecionado = 1;
+            var portaoAtivo = 1;
+            var filtroSlotAtivo = null;
 
-            var STORAGE_KEY = 'siag_programacao_carregamento_v1';
-            var estadoSistema = lerStorage(STORAGE_KEY) || {
-                portaoAtivo: 1,
-                portoes: {}
-            };
+            var ordensEmExecucao = {};
+            var estadoPortoes = {};
 
-            var filaProgramacao = [];
-
-            function popularSelectPortoes() {
-                var sel = document.getElementById('prog-portao');
-                var html = '';
-                for (var i = 1; i <= 30; i++) {
-                    var num = i < 10 ? '0' + i : '' + i;
-                    html += '<option value="' + i + '">Portão ' + num + '</option>';
+            function inicializarEstado() {
+                ordensEmExecucao = {};
+                estadoPortoes = {};
+                for (var p = 1; p <= 12; p++) {
+                    estadoPortoes[p] = { slots: [] };
                 }
-                sel.innerHTML = html;
-                sel.value = String(estadoSistema.portaoAtivo || 1);
             }
 
-            function mostrarAviso(msg) {
+            function formatarNumero(n) {
+                return Number(n || 0).toLocaleString('pt-BR');
+            }
+
+            function formatarTempoTurno(min) {
+                var h = Math.floor(min / 60);
+                var m = min % 60;
+                if (h === 0) return m + ' min';
+                return h + 'h ' + (m < 10 ? '0' + m : m) + 'min';
+            }
+
+            function formatarMMSS(seg) {
+                var s = Math.max(0, Math.floor(seg));
+                var min = Math.floor(s / 60);
+                var rem = s % 60;
+                return String(min).padStart(2, '0') + ':' + String(rem).padStart(2, '0');
+            }
+
+            function mostrarAviso(texto) {
                 var el = document.getElementById('status-aviso');
-                el.textContent = msg;
+                el.textContent = texto;
                 setTimeout(function() {
-                    if (el.textContent === msg) el.textContent = '';
+                    if (el.textContent === texto) el.textContent = '';
                 }, 4000);
+            }
+
+            // Só atualiza os textos das opções sem destruir a escolha do usuário
+            function sincronizarOpcoesPortoes12() {
+                var sel = document.getElementById('select-portao-destino');
+                if (sel.options.length !== 12) {
+                    var html = '';
+                    for (var p = 1; p <= 12; p++) {
+                        var pStr = p < 10 ? '0' + p : '' + p;
+                        var qtdPal = estadoPortoes[p].slots.length;
+                        html += '<option value="' + p + '">Portão ' + pStr + ' (' + qtdPal + '/22 pallets)</option>';
+                    }
+                    sel.innerHTML = html;
+                } else {
+                    for (var idx = 0; idx < 12; idx++) {
+                        var numP = idx + 1;
+                        var pLabel = numP < 10 ? '0' + numP : '' + numP;
+                        var qtd = estadoPortoes[numP].slots.length;
+                        sel.options[idx].text = 'Portão ' + pLabel + ' (' + qtd + '/22 pallets)';
+                    }
+                }
+                sel.value = String(portaoDestinoSelecionado);
+            }
+
+            function encontrarOrdem(id) {
+                for (var i = 0; i < ORDENS_BASE.length; i++) {
+                    if (ORDENS_BASE[i].id === id) return ORDENS_BASE[i];
+                }
+                return null;
+            }
+
+            function gerarSlotsLivres(portaoNum, quantidadeNecessaria) {
+                var ocupados = {};
+                var slotsAtuais = estadoPortoes[portaoNum].slots;
+                for (var i = 0; i < slotsAtuais.length; i++) {
+                    ocupados[slotsAtuais[i].coluna + '-' + slotsAtuais[i].pos] = true;
+                }
+
+                var livres = [];
+                var cols = ['Col 1', 'Col 2'];
+                for (var c = 0; c < cols.length; c++) {
+                    for (var pos = 1; pos <= 11; pos++) {
+                        var chave = cols[c] + '-' + pos;
+                        if (!ocupados[chave]) {
+                            livres.push({ coluna: cols[c], pos: pos });
+                            if (livres.length === quantidadeNecessaria) {
+                                return livres;
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+
+            function alocarOrdemNoPortao(ordemId, portaoNum) {
+                var ordem = encontrarOrdem(ordemId);
+                if (!ordem) return;
+
+                if (ordensEmExecucao[ordemId]) {
+                    var pAtual = ordensEmExecucao[ordemId].portao;
+                    alert('A ordem ' + ordem.id + ' já está alocada no Portão ' + String(pAtual).padStart(2, '0') + '.');
+                    return;
+                }
+
+                var livres = gerarSlotsLivres(portaoNum, ordem.pallets);
+                if (!livres) {
+                    alert('Portão ' + String(portaoNum).padStart(2, '0') + ' não possui ' + ordem.pallets + ' posições livres (máx. 22 pallets).');
+                    return;
+                }
+
+                var caixasPorPallet = Math.floor(ordem.caixas / ordem.pallets);
+                var restoCaixas = ordem.caixas % ordem.pallets;
+
+                for (var i = 0; i < ordem.pallets; i++) {
+                    var cxsPallet = caixasPorPallet + (i === 0 ? restoCaixas : 0);
+                    var paresPallet = cxsPallet * PARES_POR_CAIXA;
+                    estadoPortoes[portaoNum].slots.push({
+                        pos: livres[i].pos,
+                        coluna: livres[i].coluna,
+                        ordemId: ordem.id,
+                        cliente: ordem.cliente,
+                        prazo: ordem.prazo,
+                        palletCod: ordem.id.replace('OC-', 'PLT-') + '-' + String(i + 1).padStart(2, '0'),
+                        caixas: cxsPallet,
+                        pares: paresPallet,
+                        minutosTurno: i === 0 ? ordem.minutosTurno : 0
+                    });
+                }
+
+                ordensEmExecucao[ordem.id] = {
+                    portao: portaoNum,
+                    fase: 'PREPARO',
+                    preparoRestanteSeg: PREPARO_SEGUNDOS,
+                    carregamentoDecorridoSeg: 0,
+                    duracaoRealSeg: ordem.duracaoRealSeg,
+                    progresso: 0
+                };
+
+                portaoAtivo = portaoNum;
+                portaoDestinoSelecionado = portaoNum;
+                mostrarAviso(ordem.id + ' alocada no Portão ' + String(portaoNum).padStart(2, '0') + ' • 01:00 de preparo');
+                atualizarTela();
+            }
+
+            function iniciarCarregamentoImediato(ordemId) {
+                var st = ordensEmExecucao[ordemId];
+                if (!st || st.fase !== 'PREPARO') return;
+                st.fase = 'CARREGANDO';
+                st.preparoRestanteSeg = 0;
+                mostrarAviso('Preparo concluído para ' + ordemId + ' • Carregamento iniciado');
+                atualizarTela();
+            }
+
+            function removerOrdemDoSistema(ordemId) {
+                delete ordensEmExecucao[ordemId];
+                for (var p = 1; p <= 12; p++) {
+                    estadoPortoes[p].slots = estadoPortoes[p].slots.filter(function(sl) {
+                        return sl.ordemId !== ordemId;
+                    });
+                }
+                mostrarAviso('Ordem ' + ordemId + ' removida do carregamento');
+                atualizarTela();
+            }
+
+            function liberarPortao(portaoNum) {
+                var slots = estadoPortoes[portaoNum].slots;
+                for (var i = 0; i < slots.length; i++) {
+                    delete ordensEmExecucao[slots[i].ordemId];
+                }
+                estadoPortoes[portaoNum].slots = [];
+                filtroSlotAtivo = null;
+                mostrarAviso('Portão ' + String(portaoNum).padStart(2, '0') + ' liberado');
+                atualizarTela();
+            }
+
+            function tickSegundos() {
+                var houveMudanca = false;
+                var ids = Object.keys(ordensEmExecucao);
+
+                for (var i = 0; i < ids.length; i++) {
+                    var id = ids[i];
+                    var st = ordensEmExecucao[id];
+
+                    if (st.fase === 'PREPARO') {
+                        houveMudanca = true;
+                        st.preparoRestanteSeg = Math.max(0, st.preparoRestanteSeg - 1);
+                        if (st.preparoRestanteSeg <= 0) {
+                            st.fase = 'CARREGANDO';
+                            st.carregamentoDecorridoSeg = 0;
+                            st.progresso = 0;
+                        }
+                    } else if (st.fase === 'CARREGANDO') {
+                        houveMudanca = true;
+                        st.carregamentoDecorridoSeg = Math.min(st.duracaoRealSeg, st.carregamentoDecorridoSeg + 1);
+                        st.progresso = st.duracaoRealSeg > 0 ? (st.carregamentoDecorridoSeg / st.duracaoRealSeg) : 1;
+                        if (st.carregamentoDecorridoSeg >= st.duracaoRealSeg) {
+                            st.progresso = 1;
+                            st.fase = 'FECHADA';
+                            mostrarAviso('Ordem ' + id + ' concluída e FECHADA no Portão ' + String(st.portao).padStart(2, '0'));
+                        }
+                    }
+                }
+
+                if (houveMudanca) {
+                    atualizarTela();
+                }
+            }
+
+            function calcularIndicadores() {
+                var paresEfetivos = 0;
+                var caixasEfetivas = 0;
+                var minutosTurnoAlocados = 0;
+                var ordensAlocadasCount = 0;
+                var ordensFechadasCount = 0;
+                var prazosHojeContemplados = 0;
+
+                for (var i = 0; i < ORDENS_BASE.length; i++) {
+                    var o = ORDENS_BASE[i];
+                    var st = ordensEmExecucao[o.id];
+                    if (st) {
+                        ordensAlocadasCount++;
+                        minutosTurnoAlocados += o.minutosTurno;
+                        if (o.prazo.indexOf('Hoje') === 0) {
+                            prazosHojeContemplados++;
+                        }
+                        var fator = st.fase === 'FECHADA' ? 1 : (st.fase === 'CARREGANDO' ? st.progresso : 0);
+                        var cxsProg = Math.round(o.caixas * fator);
+                        caixasEfetivas += cxsProg;
+                        paresEfetivos += cxsProg * PARES_POR_CAIXA;
+                        if (st.fase === 'FECHADA') {
+                            ordensFechadasCount++;
+                        }
+                    }
+                }
+
+                var portoesAtivos = 0;
+                for (var p = 1; p <= 12; p++) {
+                    if (estadoPortoes[p].slots.length > 0) portoesAtivos++;
+                }
+
+                return {
+                    paresEfetivos: paresEfetivos,
+                    caixasEfetivas: caixasEfetivas,
+                    minutosTurnoAlocados: minutosTurnoAlocados,
+                    ordensAlocadasCount: ordensAlocadasCount,
+                    ordensFechadasCount: ordensFechadasCount,
+                    portoesAtivos: portoesAtivos,
+                    prazosHojeContemplados: prazosHojeContemplados
+                };
+            }
+
+            function renderizarKPIs(ind) {
+                var pctPares = Math.min(100, Math.round((ind.paresEfetivos / META_PARES) * 1000) / 10);
+                var pctOrdens = Math.min(100, Math.round((ind.ordensFechadasCount / META_ORDENS) * 1000) / 10);
+                var pctTempo = Math.min(100, Math.round((ind.minutosTurnoAlocados / MINUTOS_DISPONIVEIS) * 1000) / 10);
+                var horasTurnoStr = (ind.minutosTurnoAlocados / 60).toFixed(1).replace('.', ',');
+
+                document.getElementById('kpi-pares').textContent = formatarNumero(ind.paresEfetivos) + ' / 500.000';
+                document.getElementById('kpi-pares-sub').textContent = pctPares + '% carregado • Meta diária 500k pares';
+                document.getElementById('barra-pares').style.width = pctPares + '%';
+
+                var cardPares = document.getElementById('kpi-card-pares');
+                cardPares.className = 'kpi-card ' + (ind.paresEfetivos >= META_PARES ? 'meta-ok' : '');
+
+                document.getElementById('kpi-ordens').textContent = ind.ordensFechadasCount + ' fechadas / ' + ind.ordensAlocadasCount + ' aloc. (22)';
+                document.getElementById('kpi-caixas-sub').textContent = formatarNumero(ind.caixasEfetivas) + ' / 20.000 caixas efetivas';
+                document.getElementById('barra-ordens').style.width = pctOrdens + '%';
+
+                document.getElementById('kpi-tempo').textContent = horasTurnoStr + 'h / 8,0h';
+                document.getElementById('kpi-tempo-sub').textContent = ind.minutosTurnoAlocados + ' / ' + MINUTOS_DISPONIVEIS + ' min de turno';
+                document.getElementById('barra-tempo').style.width = pctTempo + '%';
+
+                var cardTempo = document.getElementById('kpi-card-tempo');
+                cardTempo.className = 'kpi-card ' + (ind.minutosTurnoAlocados > MINUTOS_DISPONIVEIS ? 'alerta' : '');
+
+                document.getElementById('kpi-portoes').textContent = ind.portoesAtivos + ' / 12';
+
+                var totalHoje = 0;
+                for (var i = 0; i < ORDENS_BASE.length; i++) {
+                    if (ORDENS_BASE[i].prazo.indexOf('Hoje') === 0) totalHoje++;
+                }
+                document.getElementById('kpi-prazo').textContent = ind.prazosHojeContemplados + ' / ' + totalHoje;
+            }
+
+            function renderizarTabelaProgramacao() {
+                var filtroPrazo = document.getElementById('filtro-prazo').value;
+                var tbody = document.getElementById('tbody-ordens-programacao');
+                var html = '';
+
+                for (var i = 0; i < ORDENS_BASE.length; i++) {
+                    var o = ORDENS_BASE[i];
+                    if (filtroPrazo !== 'TODOS' && o.prazo !== filtroPrazo) continue;
+
+                    var paresTotais = o.caixas * PARES_POR_CAIXA;
+                    var st = ordensEmExecucao[o.id];
+                    var isSel = o.id === ordemSelecionadaId;
+
+                    var statusBadge = '<span class="badge badge-aguardando">Aguardando</span>';
+                    var fechamentoTxt = 'Ciclo ' + formatarMMSS(o.duracaoRealSeg);
+                    var pctVisual = 0;
+                    var barCls = 'mini-prog-bar';
+                    var acaoHtml = '<button type="button" data-alocar-id="' + o.id + '" class="btn-azul" style="padding:3px 8px; font-size:10px;">Alocar</button>';
+
+                    if (st) {
+                        var pStr = String(st.portao).padStart(2, '0');
+                        if (st.fase === 'PREPARO') {
+                            statusBadge = '<span class="badge badge-preparo">PT ' + pStr + ' • Preparo ' + formatarMMSS(st.preparoRestanteSeg) + '</span>';
+                            fechamentoTxt = 'Inicia em ' + formatarMMSS(st.preparoRestanteSeg);
+                            barCls = 'mini-prog-bar preparo';
+                            acaoHtml = '<button type="button" data-iniciar-id="' + o.id + '" class="btn-verde" style="padding:3px 7px; font-size:10px;">Iniciar Agora</button>';
+                        } else if (st.fase === 'CARREGANDO') {
+                            pctVisual = Math.round(st.progresso * 100);
+                            var restSeg = Math.max(0, st.duracaoRealSeg - st.carregamentoDecorridoSeg);
+                            statusBadge = '<span class="badge badge-carregando">PT ' + pStr + ' • Carregando</span>';
+                            fechamentoTxt = 'Fecha em ' + formatarMMSS(restSeg);
+                        } else if (st.fase === 'FECHADA') {
+                            pctVisual = 100;
+                            statusBadge = '<span class="badge badge-fechada">PT ' + pStr + ' • Fechada</span>';
+                            fechamentoTxt = 'OC Fechada';
+                            barCls = 'mini-prog-bar fechada';
+                            acaoHtml = '<button type="button" data-remover-id="' + o.id + '" class="btn-neutro" style="padding:3px 7px; font-size:10px;">Limpar</button>';
+                        }
+                    }
+
+                    var clsRow = st ? 'linha-alocada' : '';
+                    if (isSel) clsRow += ' linha-selecionada';
+
+                    html += '<tr data-select-ordem="' + o.id + '" class="' + clsRow + '" style="cursor:pointer;">' +
+                        '<td style="font-family:monospace; font-weight:700;">' + o.id + '</td>' +
+                        '<td style="text-align:left; font-weight:600;">' + o.cliente + '</td>' +
+                        '<td>' + o.prazo + '</td>' +
+                        '<td style="font-family:monospace; font-weight:700;">' + formatarNumero(paresTotais) + '</td>' +
+                        '<td style="font-family:monospace;">' + formatarNumero(o.caixas) + '</td>' +
+                        '<td style="font-family:monospace; font-weight:700;">' + o.pallets + '</td>' +
+                        '<td style="font-family:monospace;">' + formatarTempoTurno(o.minutosTurno) + '</td>' +
+                        '<td>' + statusBadge + '</td>' +
+                        '<td style="font-family:monospace; font-size:10px;">' + fechamentoTxt + '</td>' +
+                        '<td style="white-space:nowrap;">' +
+                            '<div class="mini-prog-wrap"><div class="' + barCls + '" style="width:' + pctVisual + '%;"></div></div>' +
+                            '<span style="font-family:monospace; font-size:10px; font-weight:700;">' + pctVisual + '%</span>' +
+                        '</td>' +
+                        '<td>' + acaoHtml + '</td>' +
+                    '</tr>';
+                }
+
+                tbody.innerHTML = html;
+
+                var selObj = encontrarOrdem(ordemSelecionadaId);
+                if (selObj) {
+                    var destStr = String(portaoDestinoSelecionado).padStart(2, '0');
+                    document.getElementById('info-ordem-selecionada').innerHTML =
+                        '<strong>Selecionada:</strong> ' + selObj.id + ' (' + selObj.cliente + ') → <strong>Portão Destino:</strong> PT ' + destStr +
+                        ' • <strong>Prazo:</strong> ' + selObj.prazo +
+                        ' • <strong>Pares:</strong> ' + formatarNumero(selObj.caixas * PARES_POR_CAIXA) +
+                        ' • <strong>Caixas:</strong> ' + formatarNumero(selObj.caixas) +
+                        ' • <strong>Pallets:</strong> ' + selObj.pallets +
+                        ' • <strong>Preparo:</strong> 01:00 • <strong>Ciclo:</strong> ' + formatarMMSS(selObj.duracaoRealSeg);
+                }
+
+                var trs = tbody.querySelectorAll('tr[data-select-ordem]');
+                for (var r = 0; r < trs.length; r++) {
+                    trs[r].addEventListener('click', function() {
+                        ordemSelecionadaId = this.getAttribute('data-select-ordem');
+                        renderizarTabelaProgramacao();
+                    });
+                }
+
+                var btnsAloc = tbody.querySelectorAll('button[data-alocar-id]');
+                for (var a = 0; a < btnsAloc.length; a++) {
+                    btnsAloc[a].addEventListener('click', function(ev) {
+                        ev.stopPropagation();
+                        var idA = this.getAttribute('data-alocar-id');
+                        ordemSelecionadaId = idA;
+                        alocarOrdemNoPortao(idA, portaoDestinoSelecionado);
+                    });
+                }
+
+                var btnsIni = tbody.querySelectorAll('button[data-iniciar-id]');
+                for (var b = 0; b < btnsIni.length; b++) {
+                    btnsIni[b].addEventListener('click', function(ev) {
+                        ev.stopPropagation();
+                        iniciarCarregamentoImediato(this.getAttribute('data-iniciar-id'));
+                    });
+                }
+
+                var btnsRem = tbody.querySelectorAll('button[data-remover-id]');
+                for (var c = 0; c < btnsRem.length; c++) {
+                    btnsRem[c].addEventListener('click', function(ev) {
+                        ev.stopPropagation();
+                        removerOrdemDoSistema(this.getAttribute('data-remover-id'));
+                    });
+                }
+            }
+
+            function renderizarVisualizacao12() {
+                var strip = document.getElementById('grid-portoes-12');
+                var stripHtml = '';
+
+                for (var p = 1; p <= 12; p++) {
+                    var pStr = p < 10 ? '0' + p : '' + p;
+                    var slots = estadoPortoes[p].slots;
+
+                    var temPreparo = false;
+                    var temCarregando = false;
+                    var todasFechadas = slots.length > 0;
+                    var paresP = 0;
+
+                    for (var s = 0; s < slots.length; s++) {
+                        var sl = slots[s];
+                        paresP += sl.pares;
+                        var stOrd = ordensEmExecucao[sl.ordemId];
+                        if (stOrd) {
+                            if (stOrd.fase === 'PREPARO') temPreparo = true;
+                            if (stOrd.fase === 'CARREGANDO') temCarregando = true;
+                            if (stOrd.fase !== 'FECHADA') todasFechadas = false;
+                        }
+                    }
+
+                    var cls = 'portao-12-btn portao-livre';
+                    var rotuloEstado = 'Livre';
+                    if (slots.length > 0) {
+                        if (temPreparo) {
+                            cls = 'portao-12-btn portao-preparo';
+                            rotuloEstado = 'Preparo';
+                        } else if (temCarregando) {
+                            cls = 'portao-12-btn portao-carregando';
+                            rotuloEstado = 'Carregando';
+                        } else if (todasFechadas) {
+                            cls = 'portao-12-btn portao-fechado';
+                            rotuloEstado = 'Fechado';
+                        }
+                    }
+                    if (portaoAtivo === p) cls += ' selecionado';
+
+                    stripHtml += '<button type="button" data-portao-12="' + p + '" class="' + cls + '">' +
+                        '<span>PT ' + pStr + '</span>' +
+                        '<span style="font-size:9px;">' + slots.length + '/22 pal • ' + rotuloEstado + '</span>' +
+                        '<span style="font-size:9px;">' + (paresP > 0 ? formatarNumero(paresP) + ' pares' : '-') + '</span>' +
+                    '</button>';
+                }
+                strip.innerHTML = stripHtml;
+
+                var pBtns = strip.querySelectorAll('button[data-portao-12]');
+                for (var i = 0; i < pBtns.length; i++) {
+                    pBtns[i].addEventListener('click', function() {
+                        var escolhido = Number(this.getAttribute('data-portao-12'));
+                        portaoAtivo = escolhido;
+                        portaoDestinoSelecionado = escolhido;
+                        filtroSlotAtivo = null;
+                        sincronizarOpcoesPortoes12();
+                        renderizarVisualizacao12();
+                        renderizarTabelaProgramacao();
+                    });
+                }
+
+                var dadosP = estadoPortoes[portaoAtivo];
+                var atStr = portaoAtivo < 10 ? '0' + portaoAtivo : '' + portaoAtivo;
+
+                var ocupMap = {};
+                var paresTotal = 0;
+                var caixasTotal = 0;
+                var minTurnoTotal = 0;
+                var ocsSet = {};
+
+                for (var k = 0; k < dadosP.slots.length; k++) {
+                    var it = dadosP.slots[k];
+                    ocupMap[it.coluna + '-' + it.pos] = it;
+                    paresTotal += it.pares;
+                    caixasTotal += it.caixas;
+                    minTurnoTotal += it.minutosTurno;
+                    ocsSet[it.ordemId] = true;
+                }
+
+                var listaOCs = Object.keys(ocsSet);
+                document.getElementById('titulo-portao-detalhe').textContent =
+                    'Portão ' + atStr + (listaOCs.length > 0 ? ' — Ordens: ' + listaOCs.join(', ') : ' — Livre');
+
+                document.getElementById('metricas-portao-detalhe').textContent =
+                    'Pallets: ' + dadosP.slots.length + ' / ' + MAX_PALLETS_PORTAO +
+                    ' • Pares: ' + formatarNumero(paresTotal) +
+                    ' • Caixas: ' + formatarNumero(caixasTotal) +
+                    ' • Turno: ' + formatarTempoTurno(minTurnoTotal);
+
+                var c1Html = '';
+                var c2Html = '';
+                for (var pos = 1; pos <= 11; pos++) {
+                    var occ1 = !!ocupMap['Col 1-' + pos];
+                    var occ2 = !!ocupMap['Col 2-' + pos];
+                    var sel1 = filtroSlotAtivo === 'Col 1-' + pos ? ' pos-selecionada' : '';
+                    var sel2 = filtroSlotAtivo === 'Col 2-' + pos ? ' pos-selecionada' : '';
+
+                    c1Html += '<button type="button" data-slot="Col 1-' + pos + '" class="pos-btn ' + (occ1 ? 'pos-ocupada' : 'pos-livre') + sel1 + '">' + pos + '</button>';
+                    c2Html += '<button type="button" data-slot="Col 2-' + pos + '" class="pos-btn ' + (occ2 ? 'pos-ocupada' : 'pos-livre') + sel2 + '">' + pos + '</button>';
+                }
+                document.getElementById('mapa-col1').innerHTML = c1Html;
+                document.getElementById('mapa-col2').innerHTML = c2Html;
+
+                var slotBtns = document.querySelectorAll('button[data-slot]');
+                for (var sIdx = 0; sIdx < slotBtns.length; sIdx++) {
+                    slotBtns[sIdx].addEventListener('click', function() {
+                        var chave = this.getAttribute('data-slot');
+                        filtroSlotAtivo = (filtroSlotAtivo === chave) ? null : chave;
+                        renderizarVisualizacao12();
+                    });
+                }
+
+                var filtrados = [];
+                for (var r = 0; r < dadosP.slots.length; r++) {
+                    var reg = dadosP.slots[r];
+                    if (!filtroSlotAtivo || (reg.coluna + '-' + reg.pos) === filtroSlotAtivo) {
+                        filtrados.push(reg);
+                    }
+                }
+
+                var tbody = document.getElementById('tbody-portao-detalhe');
+                if (filtrados.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="padding:14px; color:#64748b;">Nenhum pallet alocado nesta visão do Portão ' + atStr + '.</td></tr>';
+                    return;
+                }
+
+                var rowsHtml = '';
+                for (var j = 0; j < filtrados.length; j++) {
+                    var item = filtrados[j];
+                    var stOrd = ordensEmExecucao[item.ordemId];
+                    var pct = 0;
+                    var stHtml = '<span class="badge badge-aguardando">Aguardando</span>';
+                    var barCls = 'mini-prog-bar';
+
+                    if (stOrd) {
+                        if (stOrd.fase === 'PREPARO') {
+                            pct = 0;
+                            stHtml = '<span class="badge badge-preparo">Preparo ' + formatarMMSS(stOrd.preparoRestanteSeg) + '</span>';
+                            barCls = 'mini-prog-bar preparo';
+                        } else if (stOrd.fase === 'CARREGANDO') {
+                            pct = Math.round(stOrd.progresso * 100);
+                            stHtml = '<span class="badge badge-carregando">Carregando</span>';
+                        } else if (stOrd.fase === 'FECHADA') {
+                            pct = 100;
+                            stHtml = '<span class="badge badge-fechada">Fechada</span>';
+                            barCls = 'mini-prog-bar fechada';
+                        }
+                    }
+
+                    var badgeCol = item.coluna === 'Col 2'
+                        ? '<span style="background:#38a86b; color:#fff; padding:1px 6px; border-radius:9px; font-size:10px; font-weight:700;">Col 2</span>'
+                        : '<span style="background:#2d74b8; color:#fff; padding:1px 6px; border-radius:9px; font-size:10px; font-weight:700;">Col 1</span>';
+
+                    rowsHtml += '<tr>' +
+                        '<td style="font-family:monospace; font-weight:700;">' + String(item.pos).padStart(2, '0') + '</td>' +
+                        '<td>' + badgeCol + '</td>' +
+                        '<td style="font-family:monospace; font-weight:700; color:#1d4ed8;">' + item.ordemId + '</td>' +
+                        '<td style="background:#ef4444; color:#fff; font-family:monospace; font-weight:700;">' + item.palletCod + '</td>' +
+                        '<td style="font-family:monospace; font-weight:700;">' + formatarNumero(item.pares) + '</td>' +
+                        '<td style="font-family:monospace;">' + formatarNumero(item.caixas) + '</td>' +
+                        '<td>' + stHtml + '</td>' +
+                        '<td style="white-space:nowrap;">' +
+                            '<div class="mini-prog-wrap"><div class="' + barCls + '" style="width:' + pct + '%;"></div></div>' +
+                            '<span style="font-family:monospace; font-size:10px; font-weight:700;">' + pct + '%</span>' +
+                        '</td>' +
+                        '<td><button type="button" data-tirar-oc="' + item.ordemId + '" style="background:#dc2626; color:#fff; border:none; padding:2px 6px; border-radius:2px; cursor:pointer; font-size:10px;">Tirar OC</button></td>' +
+                    '</tr>';
+                }
+                tbody.innerHTML = rowsHtml;
+
+                var tirarBtns = tbody.querySelectorAll('button[data-tirar-oc]');
+                for (var tb = 0; tb < tirarBtns.length; tb++) {
+                    tirarBtns[tb].addEventListener('click', function() {
+                        removerOrdemDoSistema(this.getAttribute('data-tirar-oc'));
+                    });
+                }
             }
 
             function abrirAba(aba, fecharMenu) {
                 document.getElementById('aba-programacao').style.display = 'none';
                 document.getElementById('aba-visualizacao').style.display = 'none';
-
                 document.getElementById('tab-programacao').classList.remove('ativa');
                 document.getElementById('tab-visualizacao').classList.remove('ativa');
 
                 if (aba === 'programacao') {
                     document.getElementById('aba-programacao').style.display = 'block';
                     document.getElementById('tab-programacao').classList.add('ativa');
-                    document.getElementById('header-title').textContent = 'Programação de Carregamento';
+                    document.getElementById('header-title').textContent = 'Programação & Sequenciamento — 1 min Preparo + Ciclo Real';
                 } else {
                     document.getElementById('aba-visualizacao').style.display = 'block';
                     document.getElementById('tab-visualizacao').classList.add('ativa');
-                    document.getElementById('header-title').textContent = 'Visualização do Carregamento';
-                    renderizarVisualizacao();
+                    document.getElementById('header-title').textContent = 'Visualização do Carregamento — 12 Portões';
                 }
 
                 if (fecharMenu) {
                     document.getElementById('sidebar').classList.add('collapsed');
                 }
+                atualizarTela();
             }
 
-            function renderizarFilaProgramacao() {
-                var tbody = document.getElementById('tbody-fila-programacao');
-                var portaoSel = Number(document.getElementById('prog-portao').value) || 1;
-                var portaoStr = portaoSel < 10 ? '0' + portaoSel : '' + portaoSel;
-                var ocAtual = (document.getElementById('prog-oc').value || '').trim() || '-';
-
-                if (filaProgramacao.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" style="padding:14px; color:#64748b;">' +
-                        'Nenhum item adicionado na lista para o Portão ' + portaoStr + ' (OC: ' + ocAtual + '). Você pode incluir itens ou enviar direto.' +
-                        '</td></tr>';
-                    return;
-                }
-
-                var html = '';
-                for (var i = 0; i < filaProgramacao.length; i++) {
-                    var it = filaProgramacao[i];
-                    var pStr = it.portao < 10 ? '0' + it.portao : '' + it.portao;
-                    html += '<tr>' +
-                        '<td>Portão ' + pStr + '</td>' +
-                        '<td style="font-weight:700; color:#1d4ed8;">' + it.oc + '</td>' +
-                        '<td style="font-family:monospace; font-weight:700;">' + it.px + '</td>' +
-                        '<td>' + it.lado + '</td>' +
-                        '<td style="font-family:monospace; font-weight:700;">' + it.pallet + '</td>' +
-                        '<td style="font-family:monospace;">' + it.lote + '</td>' +
-                        '<td style="font-family:monospace;">' + it.box + '</td>' +
-                        '<td style="font-weight:700;">' + it.caixas + '</td>' +
-                        '<td><button type="button" data-remover="' + i + '" style="background:#dc2626; color:#fff; border:none; padding:2px 7px; border-radius:2px; cursor:pointer; font-size:10px;">Remover</button></td>' +
-                    '</tr>';
-                }
-                tbody.innerHTML = html;
-
-                var btnsRem = tbody.querySelectorAll('button[data-remover]');
-                for (var r = 0; r < btnsRem.length; r++) {
-                    btnsRem[r].addEventListener('click', function() {
-                        var idx = Number(this.getAttribute('data-remover'));
-                        filaProgramacao.splice(idx, 1);
-                        renderizarFilaProgramacao();
-                    });
-                }
-            }
-
-            function incluirItemNaLista() {
-                var oc = (document.getElementById('prog-oc').value || '').trim();
-                var portao = Number(document.getElementById('prog-portao').value) || 1;
-                var lado = document.getElementById('prog-lado').value;
-                var pxRaw = (document.getElementById('prog-px').value || '').trim();
-                var pallet = (document.getElementById('prog-pallet').value || '').trim();
-                var lote = (document.getElementById('prog-lote').value || '').trim();
-                var box = (document.getElementById('prog-box').value || '').trim();
-                var caixas = Number(document.getElementById('prog-caixas').value) || 0;
-
-                if (!oc) {
-                    alert('Informe a Ordem de Carregamento (OC).');
-                    return;
-                }
-                if (!pallet) {
-                    alert('Informe o número do Pallet.');
-                    return;
-                }
-
-                var pxPad = pxRaw ? (pxRaw.length === 1 ? '0' + pxRaw : pxRaw) : '01';
-
-                filaProgramacao.push({
-                    portao: portao,
-                    oc: oc,
-                    lado: lado,
-                    px: pxPad,
-                    pallet: pallet,
-                    lote: lote || '-',
-                    box: box || '-',
-                    caixas: caixas
-                });
-
-                document.getElementById('prog-pallet').value = '';
-                document.getElementById('prog-caixas').value = '';
-                renderizarFilaProgramacao();
-            }
-
-            function enviarParaCarregamento() {
-                var oc = (document.getElementById('prog-oc').value || '').trim();
-                var portao = Number(document.getElementById('prog-portao').value) || 1;
-                var setor = document.getElementById('prog-setor').value;
-
-                if (!oc && filaProgramacao.length === 0) {
-                    alert('Informe a Ordem de Carregamento (OC) ou adicione um item na programação.');
-                    return;
-                }
-
-                var portaoAlvo = portao;
-                var ocFinal = oc;
-
-                if (filaProgramacao.length > 0) {
-                    for (var i = 0; i < filaProgramacao.length; i++) {
-                        var item = filaProgramacao[i];
-                        var pNum = item.portao;
-                        if (!estadoSistema.portoes[pNum]) {
-                            estadoSistema.portoes[pNum] = { oc: item.oc, itens: [] };
-                        }
-                        estadoSistema.portoes[pNum].oc = item.oc;
-                        estadoSistema.portoes[pNum].itens.push({
-                            px: item.px,
-                            lado: item.lado,
-                            pallet: item.pallet,
-                            lote: item.lote,
-                            box: item.box,
-                            caixas: item.caixas,
-                            atividade: 'Programado',
-                            operador: ''
-                        });
-                        portaoAlvo = pNum;
-                        ocFinal = item.oc;
-                    }
-                    filaProgramacao = [];
-                    renderizarFilaProgramacao();
-                } else {
-                    if (!estadoSistema.portoes[portaoAlvo]) {
-                        estadoSistema.portoes[portaoAlvo] = { oc: ocFinal, itens: [] };
-                    }
-                    estadoSistema.portoes[portaoAlvo].oc = ocFinal;
-                }
-
-                estadoSistema.portaoAtivo = portaoAlvo;
-                gravarStorage(STORAGE_KEY, estadoSistema);
-
-                document.getElementById('select-setor').value = setor;
-                var pStr = portaoAlvo < 10 ? '0' + portaoAlvo : '' + portaoAlvo;
-                mostrarAviso('OC ' + ocFinal + ' enviada para o Portão ' + pStr);
-                abrirAba('visualizacao', false);
-            }
-
-            function renderizarVisualizacao() {
-                var ativo = Number(estadoSistema.portaoAtivo) || 1;
-                var bloqueados = [1, 9, 21, 22, 23, 24, 25, 27, 28, 29, 30];
-
-                var stripHtml = '';
-                for (var i = 1; i <= 30; i++) {
-                    var numStr = i < 10 ? '0' + i : '' + i;
-                    var temOrdem = estadoSistema.portoes[i] && estadoSistema.portoes[i].oc;
-                    var cls = 'portao-btn portao-livre';
-                    if (bloqueados.indexOf(i) > -1 && !temOrdem) cls = 'portao-btn portao-bloqueado';
-                    if (temOrdem) cls = 'portao-btn portao-programado';
-                    if (ativo === i) cls += ' selecionado';
-
-                    stripHtml += '<button type="button" data-portao="' + i + '" class="' + cls + '">' + numStr + '</button>';
-                }
-
-                var grid = document.getElementById('grid-portoes');
-                grid.innerHTML = stripHtml;
-
-                var btns = grid.querySelectorAll('button[data-portao]');
-                for (var b = 0; b < btns.length; b++) {
-                    btns[b].addEventListener('click', function() {
-                        estadoSistema.portaoAtivo = Number(this.getAttribute('data-portao'));
-                        gravarStorage(STORAGE_KEY, estadoSistema);
-                        renderizarVisualizacao();
-                    });
-                }
-
-                var dadosPortao = estadoSistema.portoes[ativo] || { oc: '', itens: [] };
-                var atStr = ativo < 10 ? '0' + ativo : '' + ativo;
-
-                document.getElementById('titulo-portao-ativo').textContent =
-                    'Portão ' + atStr + ' - Ordem de carregamento: ' + (dadosPortao.oc || '-');
-
-                var totalCaixas = 0;
-                var ocupL1 = {};
-                var ocupL2 = {};
-
-                for (var k = 0; k < dadosPortao.itens.length; k++) {
-                    var reg = dadosPortao.itens[k];
-                    totalCaixas += Number(reg.caixas) || 0;
-                    var nPx = Number(reg.px);
-                    if (reg.lado === 'L1') ocupL1[nPx] = true;
-                    if (reg.lado === 'L2') ocupL2[nPx] = true;
-                }
-
-                document.getElementById('resumo-portao-ativo').textContent =
-                    'Pallets: ' + dadosPortao.itens.length + ' | Total Caixas: ' + totalCaixas;
-
-                var l1Html = '';
-                var l2Html = '';
-                for (var p = 1; p <= 11; p++) {
-                    l1Html += '<div class="pos-btn ' + (ocupL1[p] ? 'pos-ocupada' : 'pos-livre') + '">' + p + '</div>';
-                    l2Html += '<div class="pos-btn ' + (ocupL2[p] ? 'pos-ocupada' : 'pos-livre') + '">' + p + '</div>';
-                }
-                document.getElementById('mapa-lado1').innerHTML = l1Html;
-                document.getElementById('mapa-lado2').innerHTML = l2Html;
-
-                var tbody = document.getElementById('tbody-portao-pallets');
-                if (dadosPortao.itens.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="padding:16px; color:#64748b;">' +
-                        (dadosPortao.oc
-                            ? 'Ordem ' + dadosPortao.oc + ' programada no Portão ' + atStr + ' (sem pallets adicionados na grade).'
-                            : 'Nenhuma ordem programada no Portão ' + atStr + '.') +
-                        '</td></tr>';
-                    return;
-                }
-
-                var rowsHtml = '';
-                for (var r = 0; r < dadosPortao.itens.length; r++) {
-                    var item = dadosPortao.itens[r];
-                    var badge = item.lado === 'L2'
-                        ? '<span style="background:#38a86b; color:#fff; padding:1px 6px; border-radius:9px; font-size:10px; font-weight:700; margin-left:4px;">L2</span>'
-                        : '<span style="background:#2d74b8; color:#fff; padding:1px 6px; border-radius:9px; font-size:10px; font-weight:700; margin-left:4px;">L1</span>';
-
-                    rowsHtml += '<tr>' +
-                        '<td style="font-family:monospace; font-weight:700;">' + item.px + badge + '</td>' +
-                        '<td style="background:#ef4444; color:#fff; font-family:monospace; font-weight:700;">' + item.pallet + '</td>' +
-                        '<td style="font-family:monospace;">' + item.lote + '</td>' +
-                        '<td style="font-family:monospace;">' + item.box + '</td>' +
-                        '<td>Portão ' + atStr + '</td>' +
-                        '<td style="font-family:monospace; font-weight:700;">' + item.caixas + '</td>' +
-                        '<td>' + (item.atividade || '') + '</td>' +
-                        '<td>' + (item.operador || '') + '</td>' +
-                    '</tr>';
-                }
-                tbody.innerHTML = rowsHtml;
+            function atualizarTela() {
+                var ind = calcularIndicadores();
+                renderizarKPIs(ind);
+                sincronizarOpcoesPortoes12();
+                renderizarTabelaProgramacao();
+                renderizarVisualizacao12();
             }
 
             // Listeners
@@ -817,58 +1238,55 @@
                 document.getElementById('sidebar').classList.toggle('collapsed');
             });
 
-            document.getElementById('menu-search').addEventListener('keyup', function() {
-                var termo = this.value.toLowerCase();
-                var lis = document.querySelectorAll('#sidebar-menu-list li');
-                for (var i = 0; i < lis.length; i++) {
-                    lis[i].style.display = lis[i].textContent.toLowerCase().indexOf(termo) > -1 ? 'block' : 'none';
-                }
-            });
-
-            var abasBtns = document.querySelectorAll('[data-aba]');
-            for (var a = 0; a < abasBtns.length; a++) {
-                abasBtns[a].addEventListener('click', function() {
-                    var destino = this.getAttribute('data-aba');
+            var abasEls = document.querySelectorAll('[data-aba]');
+            for (var a = 0; a < abasEls.length; a++) {
+                abasEls[a].addEventListener('click', function() {
+                    var dest = this.getAttribute('data-aba');
                     var fechar = this.tagName === 'LI';
-                    abrirAba(destino, fechar);
+                    abrirAba(dest, fechar);
                 });
             }
 
-            document.getElementById('prog-portao').addEventListener('change', renderizarFilaProgramacao);
-            document.getElementById('prog-oc').addEventListener('input', renderizarFilaProgramacao);
-            document.getElementById('btn-add-item-prog').addEventListener('click', incluirItemNaLista);
-            document.getElementById('btn-enviar-carregamento').addEventListener('click', enviarParaCarregamento);
+            document.getElementById('select-portao-destino').addEventListener('change', function() {
+                portaoDestinoSelecionado = Number(this.value) || 1;
+                portaoAtivo = portaoDestinoSelecionado;
+                renderizarTabelaProgramacao();
+            });
 
-            document.getElementById('btn-limpar-prog').addEventListener('click', function() {
-                filaProgramacao = [];
-                document.getElementById('prog-oc').value = '';
-                document.getElementById('prog-obs').value = '';
-                document.getElementById('prog-px').value = '';
-                document.getElementById('prog-pallet').value = '';
-                document.getElementById('prog-lote').value = '';
-                document.getElementById('prog-box').value = '';
-                document.getElementById('prog-caixas').value = '';
-                renderizarFilaProgramacao();
+            document.getElementById('filtro-prazo').addEventListener('change', renderizarTabelaProgramacao);
+
+            document.getElementById('btn-alocar-selecionada').addEventListener('click', function() {
+                alocarOrdemNoPortao(ordemSelecionadaId, portaoDestinoSelecionado);
+            });
+
+            document.getElementById('btn-ir-visualizacao').addEventListener('click', function() {
+                portaoAtivo = portaoDestinoSelecionado;
+                abrirAba('visualizacao', false);
             });
 
             document.getElementById('btn-voltar-programacao').addEventListener('click', function() {
-                document.getElementById('prog-portao').value = String(estadoSistema.portaoAtivo || 1);
+                portaoDestinoSelecionado = portaoAtivo;
+                sincronizarOpcoesPortoes12();
                 abrirAba('programacao', false);
-                renderizarFilaProgramacao();
             });
 
-            document.getElementById('btn-limpar-portao-atual').addEventListener('click', function() {
-                var pNum = Number(estadoSistema.portaoAtivo) || 1;
-                delete estadoSistema.portoes[pNum];
-                gravarStorage(STORAGE_KEY, estadoSistema);
-                renderizarVisualizacao();
+            document.getElementById('btn-desalocar-portao').addEventListener('click', function() {
+                liberarPortao(portaoAtivo);
             });
 
-            document.getElementById('btn-refresh-cd').addEventListener('click', renderizarVisualizacao);
-            document.getElementById('select-setor').addEventListener('change', renderizarVisualizacao);
+            document.getElementById('btn-reset-simulacao').addEventListener('click', function() {
+                inicializarEstado();
+                ordemSelecionadaId = 'OC-101';
+                portaoDestinoSelecionado = 1;
+                portaoAtivo = 1;
+                filtroSlotAtivo = null;
+                mostrarAviso('Simulação reiniciada');
+                atualizarTela();
+            });
 
-            popularSelectPortoes();
-            renderizarFilaProgramacao();
+            inicializarEstado();
+            atualizarTela();
+            setInterval(tickSegundos, 1000);
         })();
     </script>
 </body>
