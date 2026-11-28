@@ -14,8 +14,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 
-    <!-- Supabase JS v2 -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase JS v2 (jsDelivr principal + fallback automático para unpkg) -->
+    <script id="supabaseSdkScript" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onload="handleSupabaseSdkLoaded()" onerror="loadSupabaseSdkFallback()"></script>
 
     <!-- ZXing Browser para leitura de códigos de barras via câmera -->
     <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
@@ -187,8 +187,19 @@
                     class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold card-alt hover:opacity-90 transition cursor-pointer"
                 >
                     <span id="supabaseStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                    <span id="supabaseStatusText" class="max-w-[190px] truncate">Supabase: Conectando...</span>
+                    <span id="supabaseStatusText" class="max-w-[210px] truncate">Supabase: Verificando...</span>
                     <i id="supabaseSyncIcon" data-lucide="refresh-cw" class="w-3.5 h-3.5" style="color: var(--text-muted);"></i>
+                </button>
+
+                <button
+                    type="button"
+                    onclick="syncFromSupabase(true)"
+                    id="reconnectSupabaseBtn"
+                    title="Reconectar e buscar colaboradores no Supabase"
+                    class="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold card-alt hover:opacity-90 transition cursor-pointer"
+                >
+                    <i data-lucide="plug-zap" class="w-4 h-4 text-blue-500"></i>
+                    <span class="hidden xl:inline">Reconectar</span>
                 </button>
 
                 <button
@@ -841,6 +852,7 @@
         let sbConfig = { ...DEFAULT_SUPABASE_CONFIG };
         let prefixRules = { ...DEFAULT_PREFIX_CONFIG };
         let supabaseClient = null;
+        let supabaseSdkReady = false;
         let employees = [];
         let scanHistory = [];
         let autoFocus = true;
@@ -881,8 +893,31 @@
                 focusScanInput();
             });
 
+            // Garante resolução imediata do status no startup mesmo se o SDK demorar
+            setSupabaseStatus('connecting', 'Supabase: Conectando...');
             syncFromSupabase(false);
         });
+
+        function handleSupabaseSdkLoaded() {
+            supabaseSdkReady = Boolean(window.supabase && window.supabase.createClient);
+            initSupabaseClient();
+        }
+
+        function loadSupabaseSdkFallback() {
+            if (document.getElementById('supabaseSdkFallbackScript')) return;
+            const fallback = document.createElement('script');
+            fallback.id = 'supabaseSdkFallbackScript';
+            fallback.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+            fallback.onload = () => {
+                handleSupabaseSdkLoaded();
+                syncFromSupabase(false);
+            };
+            fallback.onerror = () => {
+                supabaseSdkReady = false;
+                setSupabaseStatus('offline', 'Supabase: Fallback REST / Local');
+            };
+            document.head.appendChild(fallback);
+        }
 
         function handleLogoError(imgEl) {
             imgEl.classList.add('hidden');
@@ -916,15 +951,280 @@
         }
 
         function initSupabaseClient() {
-            if (!window.supabase || !window.supabase.createClient) {
+            const url = (sbConfig.url || DEFAULT_SUPABASE_CONFIG.url).trim();
+            const key = (sbConfig.key || DEFAULT_SUPABASE_CONFIG.key).trim();
+            if (!url || !key) {
                 supabaseClient = null;
-                return;
+                return false;
             }
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                try {
+                    supabaseClient = window.supabase.createClient(url, key);
+                    supabaseSdkReady = true;
+                    return true;
+                } catch (err) {
+                    console.error('Erro ao inicializar cliente Supabase:', err);
+                    supabaseClient = null;
+                    return false;
+                }
+            }
+            supabaseClient = null;
+            return false;
+        }
+
+        function setSupabaseStatus(state, labelText) {
+            const dot = document.getElementById('supabaseStatusDot');
+            const text = document.getElementById('supabaseStatusText');
+            const icon = document.getElementById('supabaseSyncIcon');
+
+            if (icon) {
+                icon.classList.toggle('animate-spin', state === 'connecting');
+            }
+            if (text && labelText) {
+                text.textContent = labelText;
+            }
+            if (dot) {
+                if (state === 'connected') {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+                } else if (state === 'connecting') {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse';
+                } else {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+                }
+            }
+        }
+
+        function showSupabaseDiagnostic(title, description, technicalDetail) {
+            const banner = document.getElementById('supabaseDiagnosticBanner');
+            if (!banner) return;
+            document.getElementById('diagTitle').textContent = title || 'Diagnóstico da Conexão Supabase';
+            document.getElementById('diagDescription').textContent = description || '';
+            document.getElementById('diagTechnicalError').textContent = technicalDetail || '';
+            banner.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function hideSupabaseDiagnostic() {
+            const banner = document.getElementById('supabaseDiagnosticBanner');
+            if (banner) banner.classList.add('hidden');
+        }
+
+        function mapSupabaseRow(row) {
+            if (!row || typeof row !== 'object') return null;
+
+            const keys = Object.keys(row);
+            const findKey = (explicitCol, candidates) => {
+                if (explicitCol && keys.includes(explicitCol)) return explicitCol;
+                if (explicitCol) {
+                    const lowerExplicit = explicitCol.toLowerCase();
+                    const foundExplicit = keys.find((k) => k.toLowerCase() === lowerExplicit);
+                    if (foundExplicit) return foundExplicit;
+                }
+                for (const cand of candidates) {
+                    const found = keys.find((k) => k.toLowerCase() === cand.toLowerCase());
+                    if (found) return found;
+                }
+                for (const cand of candidates) {
+                    const foundPartial = keys.find((k) => k.toLowerCase().includes(cand.toLowerCase()));
+                    if (foundPartial) return foundPartial;
+                }
+                return null;
+            };
+
+            const matKey = findKey(sbConfig.colMatricula, ['matricula', 'matrícula', 'codigo', 'código', 'cracha', 'crachá', 'id']);
+            const nomeKey = findKey(sbConfig.colNome, ['nome', 'colaborador', 'funcionario', 'funcionário']);
+            const funcaoKey = findKey(sbConfig.colFuncao, ['funcao', 'função', 'cargo']);
+            const lotacaoKey = findKey(sbConfig.colLotacao, ['lotacao', 'lotação', 'setor', 'turno', 'area', 'área']);
+
+            const rawMat = matKey ? String(row[matKey] ?? '').trim() : '';
+            const matricula = cleanBarcodePrefix(rawMat) || rawMat;
+            const nome = nomeKey ? String(row[nomeKey] ?? '').trim().toUpperCase() : '';
+            const funcao = funcaoKey ? String(row[funcaoKey] ?? '').trim() : '';
+            const lotacao = lotacaoKey ? String(row[lotacaoKey] ?? '').trim() : '';
+
+            if (!matricula || !nome) return null;
+            return { matricula, nome, funcao, lotacao };
+        }
+
+        async function querySupabaseRows(tableName) {
+            const url = (sbConfig.url || DEFAULT_SUPABASE_CONFIG.url).trim().replace(/\/+$/, '');
+            const key = (sbConfig.key || DEFAULT_SUPABASE_CONFIG.key).trim();
+
+            // 1. Tentativa via SDK oficial Supabase JS
+            initSupabaseClient();
+            if (supabaseClient) {
+                const { data, error } = await supabaseClient
+                    .from(tableName)
+                    .select('*')
+                    .limit(2000);
+
+                if (!error && Array.isArray(data)) {
+                    return { rows: data, via: 'SDK' };
+                }
+
+                // Se o erro for de coluna/tabela inexistente via SDK, tenta REST API antes de falhar
+                console.warn('Consulta via SDK retornou erro, tentando REST API:', error);
+                try {
+                    const restRows = await querySupabaseViaRest(url, key, tableName);
+                    return { rows: restRows, via: 'REST' };
+                } catch (_) {
+                    throw error || new Error('Falha ao consultar tabela no Supabase.');
+                }
+            }
+
+            // 2. Fallback direto via PostgREST caso o SDK ainda não esteja disponível
+            const restRows = await querySupabaseViaRest(url, key, tableName);
+            return { rows: restRows, via: 'REST' };
+        }
+
+        async function querySupabaseViaRest(baseUrl, apiKey, tableName) {
+            const endpoint = `${baseUrl}/rest/v1/${encodeURIComponent(tableName)}?select=*&limit=2000`;
+            const response = await fetch(endpoint, {
+                method: 'GET',
+                headers: {
+                    'apikey': apiKey,
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errText = await response.text().catch(() => '');
+                throw new Error(`HTTP ${response.status}: ${errText || response.statusText}`);
+            }
+
+            const json = await response.json();
+            if (!Array.isArray(json)) {
+                throw new Error('Resposta inesperada da API REST do Supabase.');
+            }
+            return json;
+        }
+
+        async function syncFromSupabase(showFeedback = false) {
+            const tableName = (sbConfig.table || 'colaboradores').trim();
+            setSupabaseStatus('connecting', 'Supabase: Conectando...');
+
+            const timeoutGuard = setTimeout(() => {
+                const currentText = document.getElementById('supabaseStatusText')?.textContent || '';
+                if (currentText.includes('Conectando')) {
+                    setSupabaseStatus('offline', `Supabase: Tempo esgotado (${employees.length} locais)`);
+                }
+            }, 8000);
+
             try {
-                supabaseClient = window.supabase.createClient(sbConfig.url.trim(), sbConfig.key.trim());
+                const { rows, via } = await querySupabaseRows(tableName);
+                clearTimeout(timeoutGuard);
+
+                const parsed = [];
+                const seen = new Set();
+                rows.forEach((row) => {
+                    const mapped = mapSupabaseRow(row);
+                    if (mapped && !seen.has(mapped.matricula)) {
+                        seen.add(mapped.matricula);
+                        parsed.push(mapped);
+                    }
+                });
+
+                employees = parsed;
+                localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+                renderEmployeesTable();
+                hideSupabaseDiagnostic();
+                setSupabaseStatus('connected', `Supabase: ${employees.length} colab. (${via})`);
+
+                if (showFeedback) {
+                    showToast(`Sincronizado com Supabase (${employees.length} colaboradores).`, 'success');
+                }
+                return { ok: true, count: employees.length };
             } catch (err) {
-                console.error('Erro ao inicializar cliente Supabase:', err);
-                supabaseClient = null;
+                clearTimeout(timeoutGuard);
+                const msg = err?.message || String(err);
+                console.error('Erro ao sincronizar com Supabase:', err);
+
+                renderEmployeesTable();
+                setSupabaseStatus('offline', `Supabase: Erro (${employees.length} locais)`);
+                showSupabaseDiagnostic(
+                    `Não foi possível carregar dados de "${tableName}" no Supabase`,
+                    'Verifique se a tabela existe, se o RLS permite leitura pública (anon) e se a URL/chave estão corretas. Enquanto isso, o sistema opera com a base local salva.',
+                    msg
+                );
+
+                if (showFeedback) {
+                    showToast(`Falha no Supabase: ${msg}`, 'warning');
+                }
+                return { ok: false, error: msg };
+            }
+        }
+
+        async function upsertEmployeeToSupabase(record) {
+            const tableName = (sbConfig.table || 'colaboradores').trim();
+            const matCol = (sbConfig.colMatricula || 'matricula').trim();
+            const nomeCol = (sbConfig.colNome || 'nome').trim();
+            const funcaoCol = (sbConfig.colFuncao || 'funcao').trim();
+            const lotacaoCol = (sbConfig.colLotacao || 'lotacao').trim();
+
+            const payload = {
+                [matCol]: record.matricula,
+                [nomeCol]: record.nome,
+                [funcaoCol]: record.funcao
+            };
+            if (lotacaoCol) {
+                payload[lotacaoCol] = record.lotacao || '';
+            }
+
+            try {
+                initSupabaseClient();
+                if (supabaseClient) {
+                    const { error } = await supabaseClient
+                        .from(tableName)
+                        .upsert(payload, { onConflict: matCol });
+                    if (error) throw error;
+                    hideSupabaseDiagnostic();
+                    setSupabaseStatus('connected', `Supabase: ${employees.length} colab.`);
+                    return { ok: true };
+                }
+
+                const url = (sbConfig.url || DEFAULT_SUPABASE_CONFIG.url).trim().replace(/\/+$/, '');
+                const key = (sbConfig.key || DEFAULT_SUPABASE_CONFIG.key).trim();
+                const endpoint = `${url}/rest/v1/${encodeURIComponent(tableName)}?on_conflict=${encodeURIComponent(matCol)}`;
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': key,
+                        'Authorization': `Bearer ${key}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'resolution=merge-duplicates,return=minimal'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    const txt = await res.text().catch(() => '');
+                    throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
+                }
+                hideSupabaseDiagnostic();
+                setSupabaseStatus('connected', `Supabase: ${employees.length} colab.`);
+                return { ok: true };
+            } catch (err) {
+                const msg = err?.message || String(err);
+                return { ok: false, error: msg };
+            }
+        }
+
+        async function deleteEmployeeFromSupabase(matricula) {
+            const tableName = (sbConfig.table || 'colaboradores').trim();
+            const matCol = (sbConfig.colMatricula || 'matricula').trim();
+            try {
+                initSupabaseClient();
+                if (supabaseClient) {
+                    const { error } = await supabaseClient
+                        .from(tableName)
+                        .delete()
+                        .eq(matCol, matricula);
+                    if (error) throw error;
+                }
+                return { ok: true };
+            } catch (err) {
+                console.warn('Falha ao excluir no Supabase:', err);
+                return { ok: false, error: err?.message || String(err) };
             }
         }
 
