@@ -79,19 +79,23 @@
         }
 
         .container {
-            max-width: 1480px;
+            max-width: 1520px;
             margin: 0 auto;
             padding: 12px;
         }
 
         .kpi-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(140px, 1fr));
+            grid-template-columns: repeat(5, minmax(135px, 1fr));
             gap: 8px;
             margin-bottom: 10px;
         }
 
-        @media (max-width: 760px) {
+        @media (max-width: 920px) {
+            .kpi-grid { grid-template-columns: repeat(3, minmax(130px, 1fr)); }
+        }
+
+        @media (max-width: 560px) {
             .kpi-grid { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
         }
 
@@ -101,6 +105,10 @@
             border-radius: 6px;
             padding: 9px 11px;
         }
+
+        .kpi-card.ok { border-left: 4px solid #16a34a; }
+        .kpi-card.prod { border-left: 4px solid #2563eb; }
+        .kpi-card.pend { border-left: 4px solid #dc2626; }
 
         .kpi-label {
             font-size: 10px;
@@ -116,7 +124,7 @@
             margin-top: 2px;
         }
 
-        /* INDICADORES DE FABRICAS (1 A 8) */
+        /* INDICADORES DE FABRICAS PENDENTES (1 A 8) */
         .fab-panel {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
@@ -293,7 +301,7 @@
         table.grid-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1220px;
+            min-width: 1320px;
         }
 
         table.grid-table thead th {
@@ -315,11 +323,19 @@
             background: var(--row-hover);
         }
 
+        table.grid-table tbody tr.row-ok {
+            background: rgba(22, 163, 74, 0.06);
+        }
+
+        table.grid-table tbody tr.row-prod {
+            background: rgba(37, 99, 235, 0.06);
+        }
+
         table.grid-table tbody td {
             border-bottom: 1px solid var(--border-color);
             border-right: 1px solid var(--border-color);
             padding: 0;
-            height: 34px;
+            height: 36px;
         }
 
         .cell-input, .cell-select {
@@ -372,6 +388,44 @@
         .cat-alerta { background: #fee2e2; color: #991b1b; }
         .cat-outros { background: #e2e8f0; color: #334155; }
 
+        /* BOTOES DE STATUS OPERACIONAL ("OK" e "EM PRODUCAO") */
+        .status-btn-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 4px;
+        }
+
+        .st-btn {
+            border: 1px solid var(--border-color);
+            background: var(--bg-subtle);
+            color: var(--text-muted);
+            border-radius: 4px;
+            padding: 3px 7px;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.12s;
+        }
+
+        .st-btn:hover {
+            border-color: var(--accent);
+            color: var(--text-main);
+        }
+
+        .st-btn.ativo-ok {
+            background: #16a34a;
+            border-color: #15803d;
+            color: #ffffff;
+        }
+
+        .st-btn.ativo-prod {
+            background: #2563eb;
+            border-color: #1d4ed8;
+            color: #ffffff;
+        }
+
         .pend-tag {
             display: inline-block;
             padding: 2px 6px;
@@ -382,6 +436,7 @@
         }
 
         .pend-sim { background: #fee2e2; color: #991b1b; }
+        .pend-prod { background: #dbeafe; color: #1e40af; }
         .pend-nao { background: #dcfce7; color: #166534; }
 
         .row-num {
@@ -496,7 +551,7 @@
     <header class="topbar">
         <div>
             <h1 class="topbar-title">Fechamento 2026 - Controle de Caixas</h1>
-            <div class="topbar-sub">Ordem • Caixa • Produto • Cor • Grade • Situacao • Categoria • Fabrica (1-8) • Lote • Box</div>
+            <div class="topbar-sub">Ordem • Caixa • Produto • Cor • Grade • Situacao • Categoria • Fabrica (1-8) • Status (OK / Em Producao) • Lote • Box</div>
         </div>
         <div class="toolbar-group">
             <select id="select-tema" class="select-ctrl">
@@ -519,21 +574,26 @@
             <div id="grid-fabricas" class="fab-grid"></div>
         </section>
 
+        <!-- INDICADORES GERAIS + STATUS OK / EM PRODUCAO -->
         <section class="kpi-grid">
             <div class="kpi-card">
-                <div class="kpi-label">Registros / Caixas</div>
-                <div id="kpi-total" class="kpi-val">0</div>
+                <div class="kpi-label">Registros / Ordens</div>
+                <div id="kpi-total" class="kpi-val">0 / 0</div>
+            </div>
+            <div class="kpi-card ok">
+                <div class="kpi-label">Status: OK</div>
+                <div id="kpi-ok" class="kpi-val" style="color:#16a34a;">0</div>
+            </div>
+            <div class="kpi-card prod">
+                <div class="kpi-label">Em Producao</div>
+                <div id="kpi-producao" class="kpi-val" style="color:#2563eb;">0</div>
+            </div>
+            <div class="kpi-card pend">
+                <div class="kpi-label">Pendentes</div>
+                <div id="kpi-pendencias" class="kpi-val" style="color:#dc2626;">0</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Ordens Unicas</div>
-                <div id="kpi-ordens" class="kpi-val">0</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Total Pendencias</div>
-                <div id="kpi-pendencias" class="kpi-val">0</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Fabricas com Pendencia</div>
+                <div class="kpi-label">Fabricas c/ Pendencia</div>
                 <div id="kpi-fabs-pend" class="kpi-val">0 / 8</div>
             </div>
         </section>
@@ -568,8 +628,9 @@
                     </select>
                     <select id="filtro-status" class="select-ctrl">
                         <option value="TODOS">Todos os status</option>
+                        <option value="OK">Status: OK</option>
+                        <option value="PRODUCAO">Status: Em Producao</option>
                         <option value="PENDENTE">Apenas Pendentes</option>
-                        <option value="OK">Concluidos / Embalada</option>
                     </select>
                     <select id="filtro-categoria" class="select-ctrl">
                         <option value="TODAS">Todas categorias</option>
@@ -583,7 +644,7 @@
             </div>
 
             <div class="aviso-topo">
-                <span id="msg-status">Pronto. Clique em "Colar do Sistema / Excel" para colar o texto copiado.</span>
+                <span id="msg-status">Pronto. Clique nos botoes "OK" ou "Em Producao" em cada linha para atualizar os indicadores.</span>
                 <span id="contador-salvo">Salvo localmente</span>
             </div>
 
@@ -600,7 +661,8 @@
                             <th>Situacao</th>
                             <th>Categoria</th>
                             <th>Fabrica</th>
-                            <th>Pendencia</th>
+                            <th>Acao Status</th>
+                            <th>Situacao Atual</th>
                             <th>Lote</th>
                             <th>Box</th>
                             <th>Acoes</th>
@@ -621,7 +683,7 @@
             </div>
             <div class="modal-body">
                 <p style="margin:0 0 8px 0; font-size:12px; color:var(--text-muted);">
-                    Cole abaixo o texto copiado do sistema ou da planilha. O sistema separa cada ordem, identifica a fabrica (1 a 8) quando mencionada e classifica as pendencias.
+                    Cole abaixo o texto copiado do sistema ou da planilha. O sistema separa cada ordem, identifica a fabrica (1 a 8) quando mencionada e classifica os status.
                 </p>
                 <textarea id="txt-colar" class="paste-textarea" placeholder="Cole aqui o conteudo copiado..."></textarea>
                 <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:14px; font-size:12px;">
@@ -647,7 +709,7 @@
 
     <script>
         (function () {
-            var STORAGE_KEY = 'fechamento_2026_sistema_v3';
+            var STORAGE_KEY = 'fechamento_2026_sistema_v4';
             var linhas = [];
 
             var EXEMPLO_TEXTO =
@@ -665,13 +727,14 @@
                     grade: '',
                     situacao: '',
                     fabrica: '',
+                    statusOp: '', // '' | 'OK' | 'PRODUCAO'
                     lote: '',
                     box: ''
                 };
             }
 
             function ehVazia(r) {
-                return !(r.ordem || r.caixa || r.produto || r.cor || r.grade || r.situacao || r.fabrica || r.lote || r.box);
+                return !(r.ordem || r.caixa || r.produto || r.cor || r.grade || r.situacao || r.fabrica || r.statusOp || r.lote || r.box);
             }
 
             function categorizarSituacao(sit) {
@@ -696,16 +759,22 @@
                 return '';
             }
 
-            function ehPendente(r) {
-                if (ehVazia(r)) return false;
+            // Retorna estado efetivo da linha: 'OK' | 'PRODUCAO' | 'PENDENTE' | 'VAZIO'
+            function estadoEfetivo(r) {
+                if (ehVazia(r)) return 'VAZIO';
+                if (r.statusOp === 'OK') return 'OK';
+                if (r.statusOp === 'PRODUCAO') return 'PRODUCAO';
+
                 var sit = String(r.situacao || '').trim().toLowerCase();
                 var cat = categorizarSituacao(r.situacao);
-                if (!sit) return true;
-                // "Embalada" pura sem retrabalho/falta/saldo insuficiente conta como concluida
                 if (cat === 'Embalada' && sit.indexOf('retrabalh') === -1 && sit.indexOf('falta') === -1 && sit.indexOf('insuficiente') === -1) {
-                    return false;
+                    return 'OK';
                 }
-                return true;
+                return 'PENDENTE';
+            }
+
+            function ehPendente(r) {
+                return estadoEfetivo(r) === 'PENDENTE';
             }
 
             function classeCategoria(cat) {
@@ -741,6 +810,7 @@
                         if (Array.isArray(obj.linhas) && obj.linhas.length > 0) {
                             linhas = obj.linhas.map(function (item) {
                                 var sit = String(item.situacao || '');
+                                var stOp = (item.statusOp === 'OK' || item.statusOp === 'PRODUCAO') ? item.statusOp : '';
                                 return {
                                     ordem: String(item.ordem || ''),
                                     caixa: String(item.caixa || ''),
@@ -749,6 +819,7 @@
                                     grade: String(item.grade || ''),
                                     situacao: sit,
                                     fabrica: detectarFabrica(sit, item.fabrica),
+                                    statusOp: stOp,
                                     lote: String(item.lote || ''),
                                     box: String(item.box || '')
                                 };
@@ -866,6 +937,7 @@
                         grade: grade,
                         situacao: situacao,
                         fabrica: fabrica,
+                        statusOp: '',
                         lote: lote,
                         box: box
                     };
@@ -879,8 +951,9 @@
             }
 
             function renderizarFabricasPendentes() {
-                var contagens = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
-                var totaisFab = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
+                var contPend = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
+                var contProd = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
+                var contOk = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
                 var fabsComPendencia = [];
 
                 for (var i = 0; i < linhas.length; i++) {
@@ -888,10 +961,10 @@
                     if (ehVazia(r)) continue;
                     var f = Number(r.fabrica);
                     if (f >= 1 && f <= 8) {
-                        totaisFab[f]++;
-                        if (ehPendente(r)) {
-                            contagens[f]++;
-                        }
+                        var est = estadoEfetivo(r);
+                        if (est === 'PENDENTE') contPend[f]++;
+                        else if (est === 'PRODUCAO') contProd[f]++;
+                        else if (est === 'OK') contOk[f]++;
                     }
                 }
 
@@ -900,8 +973,9 @@
                 var html = '';
 
                 for (var p = 1; p <= 8; p++) {
-                    var pend = contagens[p];
-                    var tot = totaisFab[p];
+                    var pend = contPend[p];
+                    var prod = contProd[p];
+                    var ok = contOk[p];
                     if (pend > 0) fabsComPendencia.push('Fab. ' + p + ' (' + pend + ')');
 
                     var cls = 'fab-card';
@@ -911,7 +985,7 @@
                     html += '<button type="button" class="' + cls + '" data-fab-card="' + p + '">' +
                         '<div class="fab-top"><span>FABRICA ' + p + '</span><span class="fab-dot"></span></div>' +
                         '<div class="fab-num">' + pend + '</div>' +
-                        '<div class="fab-sub">' + (pend > 0 ? 'pendente(s)' : 'sem pendencia') + ' • ' + tot + ' reg.</div>' +
+                        '<div class="fab-sub">' + (pend > 0 ? 'pend.' : 'ok') + ' • ' + prod + ' prod • ' + ok + ' ok</div>' +
                         '</button>';
                 }
 
@@ -931,21 +1005,28 @@
             function atualizarKPIs() {
                 var validas = linhas.filter(function (r) { return !ehVazia(r); });
                 var ordensMap = {};
+                var totalOk = 0;
+                var totalProd = 0;
                 var totalPend = 0;
                 var fabsSet = {};
 
                 for (var i = 0; i < validas.length; i++) {
                     var r = validas[i];
                     if (r.ordem) ordensMap[r.ordem] = true;
-                    if (ehPendente(r)) {
+
+                    var est = estadoEfetivo(r);
+                    if (est === 'OK') totalOk++;
+                    else if (est === 'PRODUCAO') totalProd++;
+                    else if (est === 'PENDENTE') {
                         totalPend++;
                         var f = Number(r.fabrica);
                         if (f >= 1 && f <= 8) fabsSet[f] = true;
                     }
                 }
 
-                document.getElementById('kpi-total').textContent = validas.length;
-                document.getElementById('kpi-ordens').textContent = Object.keys(ordensMap).length;
+                document.getElementById('kpi-total').textContent = validas.length + ' / ' + Object.keys(ordensMap).length;
+                document.getElementById('kpi-ok').textContent = totalOk;
+                document.getElementById('kpi-producao').textContent = totalProd;
                 document.getElementById('kpi-pendencias').textContent = totalPend;
                 document.getElementById('kpi-fabs-pend').textContent = Object.keys(fabsSet).length + ' / 8';
             }
@@ -961,7 +1042,7 @@
                 for (var i = 0; i < linhas.length; i++) {
                     var r = linhas[i];
                     var cat = categorizarSituacao(r.situacao);
-                    var pend = ehPendente(r);
+                    var est = estadoEfetivo(r);
                     var fabVal = String(r.fabrica || '');
 
                     if (filtroFab === 'SEM') {
@@ -970,12 +1051,14 @@
                         if (fabVal !== filtroFab) continue;
                     }
 
-                    if (filtroStatus === 'PENDENTE' && !pend) continue;
-                    if (filtroStatus === 'OK' && (pend || ehVazia(r))) continue;
+                    if (filtroStatus === 'OK' && est !== 'OK') continue;
+                    if (filtroStatus === 'PRODUCAO' && est !== 'PRODUCAO') continue;
+                    if (filtroStatus === 'PENDENTE' && est !== 'PENDENTE') continue;
+
                     if (filtroCat !== 'TODAS' && cat !== filtroCat) continue;
 
                     if (busca) {
-                        var linhaTexto = (r.ordem + ' ' + r.caixa + ' ' + r.produto + ' ' + r.cor + ' ' + r.grade + ' ' + r.situacao + ' ' + cat + ' fabrica ' + fabVal + ' ' + r.lote + ' ' + r.box).toLowerCase();
+                        var linhaTexto = (r.ordem + ' ' + r.caixa + ' ' + r.produto + ' ' + r.cor + ' ' + r.grade + ' ' + r.situacao + ' ' + cat + ' fabrica ' + fabVal + ' ' + est + ' ' + r.lote + ' ' + r.box).toLowerCase();
                         if (linhaTexto.indexOf(busca) === -1) continue;
                     }
 
@@ -984,11 +1067,27 @@
                         opcoesFab += '<option value="' + f + '"' + (fabVal === String(f) ? ' selected' : '') + '>Fab. ' + f + '</option>';
                     }
 
-                    var pendBadge = ehVazia(r)
-                        ? '<span class="cat-badge cat-outros">-</span>'
-                        : (pend ? '<span class="pend-tag pend-sim">PENDENTE</span>' : '<span class="pend-tag pend-nao">OK</span>');
+                    var okAtivo = (est === 'OK') ? ' ativo-ok' : '';
+                    var prodAtivo = (est === 'PRODUCAO') ? ' ativo-prod' : '';
 
-                    html += '<tr>';
+                    var botoesStatusHtml = '<div class="status-btn-group">' +
+                        '<button type="button" class="st-btn' + okAtivo + '" data-st-btn="OK" data-idx="' + i + '">OK</button>' +
+                        '<button type="button" class="st-btn' + prodAtivo + '" data-st-btn="PRODUCAO" data-idx="' + i + '">Em Producao</button>' +
+                        '</div>';
+
+                    var badgeAtual = '<span class="cat-badge cat-outros">-</span>';
+                    var clsRow = '';
+                    if (est === 'OK') {
+                        badgeAtual = '<span class="pend-tag pend-nao">OK</span>';
+                        clsRow = 'row-ok';
+                    } else if (est === 'PRODUCAO') {
+                        badgeAtual = '<span class="pend-tag pend-prod">EM PRODUCAO</span>';
+                        clsRow = 'row-prod';
+                    } else if (est === 'PENDENTE') {
+                        badgeAtual = '<span class="pend-tag pend-sim">PENDENTE</span>';
+                    }
+
+                    html += '<tr class="' + clsRow + '">';
                     html += '<td class="row-num">' + (i + 1) + '</td>';
                     html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="ordem" value="' + escaparAttr(r.ordem) + '"></td>';
                     html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="caixa" value="' + escaparAttr(r.caixa) + '"></td>';
@@ -998,7 +1097,8 @@
                     html += '<td><input type="text" class="cell-input" data-idx="' + i + '" data-campo="situacao" value="' + escaparAttr(r.situacao) + '"></td>';
                     html += '<td style="text-align:center; padding:0 6px;"><span class="' + classeCategoria(cat) + '">' + cat + '</span></td>';
                     html += '<td><select class="cell-select" data-idx="' + i + '" data-campo="fabrica">' + opcoesFab + '</select></td>';
-                    html += '<td style="text-align:center; padding:0 6px;">' + pendBadge + '</td>';
+                    html += '<td style="text-align:center;">' + botoesStatusHtml + '</td>';
+                    html += '<td style="text-align:center; padding:0 6px;">' + badgeAtual + '</td>';
                     html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="lote" value="' + escaparAttr(r.lote) + '"></td>';
                     html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="box" value="' + escaparAttr(r.box) + '"></td>';
                     html += '<td class="row-actions">' +
@@ -1009,7 +1109,7 @@
                 }
 
                 if (!html) {
-                    html = '<tr><td colspan="13" style="padding:18px; text-align:center; color:var(--text-muted); font-size:12px;">Nenhuma linha encontrada para os filtros atuais.</td></tr>';
+                    html = '<tr><td colspan="14" style="padding:18px; text-align:center; color:var(--text-muted); font-size:12px;">Nenhuma linha encontrada para os filtros atuais.</td></tr>';
                 }
 
                 tbody.innerHTML = html;
@@ -1080,6 +1180,27 @@
             });
 
             tbodyEl.addEventListener('click', function (ev) {
+                // Botoes de status "OK" e "Em Producao"
+                var btnSt = ev.target.closest('button[data-st-btn]');
+                if (btnSt) {
+                    var idxSt = Number(btnSt.getAttribute('data-idx'));
+                    var tipoSt = btnSt.getAttribute('data-st-btn'); // 'OK' ou 'PRODUCAO'
+                    var row = linhas[idxSt];
+                    if (row) {
+                        if (row.statusOp === tipoSt) {
+                            // Desmarca manual e volta para regra automatica
+                            row.statusOp = '';
+                            setStatus('Linha ' + (idxSt + 1) + ': status voltou para automatico.');
+                        } else {
+                            row.statusOp = tipoSt;
+                            setStatus('Linha ' + (idxSt + 1) + ' marcada como ' + (tipoSt === 'OK' ? 'OK' : 'Em Producao') + '.');
+                        }
+                        salvar();
+                        renderizarTudo();
+                    }
+                    return;
+                }
+
                 var btnDup = ev.target.closest('button[data-dup]');
                 if (btnDup) {
                     var iDup = Number(btnDup.getAttribute('data-dup'));
@@ -1188,16 +1309,18 @@
             });
 
             document.getElementById('btn-exportar').addEventListener('click', function () {
-                var cab = ['Ordem', 'Caixa', 'Produto', 'Cor', 'Grade', 'Situacao', 'Categoria', 'Fabrica', 'Pendencia', 'Lote', 'Box'];
+                var cab = ['Ordem', 'Caixa', 'Produto', 'Cor', 'Grade', 'Situacao', 'Categoria', 'Fabrica', 'Status', 'Lote', 'Box'];
                 var out = [cab.join(';')];
                 for (var i = 0; i < linhas.length; i++) {
                     var r = linhas[i];
                     if (ehVazia(r)) continue;
+                    var est = estadoEfetivo(r);
+                    var stLabel = est === 'OK' ? 'OK' : (est === 'PRODUCAO' ? 'EM PRODUCAO' : 'PENDENTE');
                     var cols = [
                         r.ordem, r.caixa, r.produto, r.cor, r.grade,
                         r.situacao, categorizarSituacao(r.situacao),
                         r.fabrica ? 'Fabrica ' + r.fabrica : '',
-                        ehPendente(r) ? 'PENDENTE' : 'OK',
+                        stLabel,
                         r.lote, r.box
                     ].map(function (v) {
                         return '"' + String(v || '').replace(/"/g, '""') + '"';
