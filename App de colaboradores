@@ -1,0 +1,1821 @@
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grendene - Identificação de Colaboradores (Supabase)</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonte Inter e JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+
+    <!-- Supabase JS v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- ZXing Browser para leitura de códigos de barras via câmera -->
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+
+    <!-- SheetJS (XLSX) para leitura e exportação de planilhas .xlsx / .csv -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Ícones Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        };
+    </script>
+
+    <style>
+        :root, [data-theme="light"] {
+            --bg-main: #f1f5f9;
+            --bg-surface: #ffffff;
+            --bg-surface-alt: #f8fafc;
+            --bg-header: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --accent: #004a8f;
+            --accent-hover: #003566;
+            --accent-soft: rgba(0, 74, 143, 0.1);
+            --input-bg: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #090d16;
+            --bg-surface: #111827;
+            --bg-surface-alt: #1e293b;
+            --bg-header: #0f172a;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #293548;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-soft: rgba(59, 130, 246, 0.16);
+            --input-bg: #1e293b;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+        }
+
+        .card-alt {
+            background-color: var(--bg-surface-alt);
+            border: 1px solid var(--border-color);
+        }
+
+        .header-surface {
+            background-color: var(--bg-header);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .field-input {
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .field-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .btn-accent {
+            background-color: var(--accent);
+            color: #ffffff;
+        }
+
+        .btn-accent:hover {
+            background-color: var(--accent-hover);
+        }
+
+        @keyframes scanBeam {
+            0%, 100% { top: 16%; opacity: 0.45; }
+            50% { top: 84%; opacity: 1; }
+        }
+
+        .scan-beam {
+            position: absolute;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444, 0 0 16px rgba(239, 68, 68, 0.8);
+            animation: scanBeam 2s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes pulseFound {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
+            100% { box-shadow: 0 0 0 14px rgba(16, 185, 129, 0); }
+        }
+
+        .flash-found {
+            animation: pulseFound 0.75s ease-out;
+        }
+
+        @keyframes pulseWarn {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+            100% { box-shadow: 0 0 0 14px rgba(245, 158, 11, 0); }
+        }
+
+        .flash-warn {
+            animation: pulseWarn 0.75s ease-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white">
+
+    <!-- CABEÇALHO -->
+    <header class="header-surface sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+            <!-- Logo e Título -->
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 flex-shrink-0 flex items-center justify-center">
+                    <img
+                        id="grendeneLogo"
+                        src="https://sindcalf.org.br/wp-content/uploads/2017/06/grendene.jpg"
+                        alt="Grendene"
+                        class="h-8 sm:h-9 w-auto object-contain"
+                        onerror="handleLogoError(this)"
+                    >
+                    <span id="grendeneLogoFallback" class="hidden px-1.5 py-0.5 text-xs font-extrabold tracking-wider text-[#004a8f]">
+                        GRENDENE
+                    </span>
+                </div>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-sm sm:text-base tracking-tight truncate">Identificador de Crachás</h1>
+                        <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-blue-600/10 text-blue-600">
+                            8 DÍGITOS
+                        </span>
+                    </div>
+                    <p class="text-xs truncate" style="color: var(--text-secondary);">Leitura de código de barras • Supabase</p>
+                </div>
+            </div>
+
+            <!-- Status Supabase + Controles -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button
+                    type="button"
+                    onclick="syncFromSupabase(true)"
+                    id="supabaseStatusBtn"
+                    title="Testar e sincronizar tabela colaboradores no Supabase"
+                    class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold card-alt hover:opacity-90 transition cursor-pointer"
+                >
+                    <span id="supabaseStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    <span id="supabaseStatusText" class="max-w-[190px] truncate">Supabase: Conectando...</span>
+                    <i id="supabaseSyncIcon" data-lucide="refresh-cw" class="w-3.5 h-3.5" style="color: var(--text-muted);"></i>
+                </button>
+
+                <button
+                    type="button"
+                    onclick="toggleAutoFocus()"
+                    id="autoFocusBtn"
+                    title="Alternar foco automático contínuo no campo de leitura"
+                    class="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold card-alt hover:opacity-90 transition cursor-pointer"
+                >
+                    <i data-lucide="scan-barcode" class="w-4 h-4 text-emerald-500"></i>
+                    <span class="hidden lg:inline">Auto-Foco:</span>
+                    <span id="autoFocusState" class="font-mono font-bold text-emerald-500">ON</span>
+                </button>
+
+                <button
+                    type="button"
+                    onclick="toggleSound()"
+                    id="soundBtn"
+                    title="Ativar ou desativar som do bipador"
+                    class="p-2 rounded-xl card-alt hover:opacity-90 transition cursor-pointer"
+                >
+                    <i id="soundIcon" data-lucide="volume-2" class="w-4 h-4 text-blue-500"></i>
+                </button>
+
+                <button
+                    type="button"
+                    onclick="toggleTheme()"
+                    id="themeBtn"
+                    title="Alternar tema claro / escuro"
+                    class="p-2 rounded-xl card-alt hover:opacity-90 transition cursor-pointer"
+                >
+                    <i id="themeIcon" data-lucide="moon" class="w-4 h-4"></i>
+                </button>
+
+                <button
+                    type="button"
+                    onclick="openConfigModal()"
+                    title="Configurar Supabase, colunas e regras de prefixo"
+                    class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold btn-accent hover:opacity-95 transition cursor-pointer"
+                >
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Configurar</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de Navegação -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 overflow-x-auto border-t" style="border-color: var(--border-color);">
+            <div class="flex gap-1">
+                <button
+                    type="button"
+                    onclick="switchTab('bipador')"
+                    id="tab-bipador"
+                    class="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-blue-600 text-blue-600 whitespace-nowrap cursor-pointer"
+                >
+                    <i data-lucide="barcode" class="w-4 h-4"></i>
+                    Bipador &amp; Identificação
+                </button>
+                <button
+                    type="button"
+                    onclick="switchTab('base')"
+                    id="tab-base"
+                    class="flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent whitespace-nowrap cursor-pointer"
+                    style="color: var(--text-secondary);"
+                >
+                    <i data-lucide="database" class="w-4 h-4"></i>
+                    Colaboradores
+                    <span id="totalColaboradoresBadge" class="px-2 py-0.5 text-[11px] font-mono font-bold rounded-full card-alt">0</span>
+                </button>
+            </div>
+
+            <div class="hidden md:flex items-center gap-2 text-xs py-2" style="color: var(--text-muted);">
+                <span>Prefixos ativos:</span>
+                <code id="activePrefixSummary" class="font-mono font-semibold px-2 py-0.5 rounded card-alt" style="color: var(--text-primary);">Letras + Zeros à esq.</code>
+            </div>
+        </div>
+    </header>
+
+    <!-- TOASTS -->
+    <div id="toastArea" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full px-4 sm:px-0 pointer-events-none"></div>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- BANNER DE DIAGNÓSTICO DO SUPABASE (Exibido quando há erro de tabela/RLS/conexão) -->
+        <div id="supabaseDiagnosticBanner" class="hidden card rounded-2xl p-4 sm:p-5 border-amber-500/50 bg-amber-500/5 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                    <div class="p-2 rounded-xl bg-amber-500/15 text-amber-500 flex-shrink-0 mt-0.5">
+                        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <h2 id="diagTitle" class="font-bold text-sm text-amber-500">Diagnóstico da Conexão Supabase</h2>
+                        <p id="diagDescription" class="text-xs sm:text-sm" style="color: var(--text-secondary);"></p>
+                        <p id="diagTechnicalError" class="font-mono text-xs px-2.5 py-1.5 rounded-lg card-alt break-all" style="color: var(--text-primary);"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button type="button" onclick="syncFromSupabase(true)" class="px-3 py-2 rounded-xl text-xs font-semibold btn-accent flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Testar Novamente
+                    </button>
+                    <button type="button" onclick="openConfigModal()" class="px-3 py-2 rounded-xl text-xs font-semibold card-alt flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="sliders" class="w-3.5 h-3.5"></i> Ajustar Tabela / SQL
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- ABA 1: BIPADOR & IDENTIFICAÇÃO                                  -->
+        <!-- =============================================================== -->
+        <section id="view-bipador" class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- COLUNA ESQUERDA: LEITOR FÍSICO + CÂMERA (5 cols) -->
+                <div class="lg:col-span-5 space-y-4">
+                    <div class="card rounded-2xl p-5 shadow-2xs space-y-4">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style="color: var(--accent);">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Bipador de Crachá
+                            </span>
+                            <span id="sourceModeBadge" class="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-full card-alt" style="color: var(--text-secondary);">
+                                Padrão: 8 dígitos • -1 final
+                            </span>
+                        </div>
+
+                        <form id="scanForm" onsubmit="handleScanSubmit(event)" class="space-y-3">
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                    <i data-lucide="scan-line" class="w-5 h-5" style="color: var(--text-muted);"></i>
+                                </span>
+                                <input
+                                    type="text"
+                                    id="barcodeInput"
+                                    autocomplete="off"
+                                    autocorrect="off"
+                                    autocapitalize="off"
+                                    spellcheck="false"
+                                    placeholder="Bipe o crachá ou digite a matrícula..."
+                                    class="field-input w-full pl-11 pr-10 py-3.5 rounded-xl font-mono text-base sm:text-lg font-bold tracking-wider transition"
+                                >
+                                <button
+                                    type="button"
+                                    onclick="clearScanInput()"
+                                    title="Limpar campo"
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
+                                    style="color: var(--text-muted);"
+                                >
+                                    <i data-lucide="x" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <button type="submit" class="btn-accent py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer">
+                                    <i data-lucide="search" class="w-4 h-4"></i>
+                                    Buscar
+                                </button>
+                                <button
+                                    type="button"
+                                    id="cameraToggleBtn"
+                                    onclick="toggleCamera()"
+                                    class="py-3 px-4 rounded-xl text-sm font-semibold card-alt hover:opacity-90 flex items-center justify-center gap-2 transition cursor-pointer"
+                                >
+                                    <i data-lucide="camera" class="w-4 h-4 text-blue-500"></i>
+                                    <span id="cameraToggleLabel">Bipar Câmera</span>
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- CÂMERA INTEGRADA -->
+                        <div id="cameraPanel" class="hidden pt-3 border-t space-y-2.5" style="border-color: var(--border-color);">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-semibold flex items-center gap-1.5">
+                                    <i data-lucide="video" class="w-4 h-4 text-red-500"></i>
+                                    Câmera ativa — aponte para o código
+                                </span>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        id="torchBtn"
+                                        onclick="toggleTorch()"
+                                        class="hidden text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-500 flex items-center gap-1 cursor-pointer"
+                                    >
+                                        <i data-lucide="zap" class="w-3.5 h-3.5"></i> Flash
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onclick="stopCamera()"
+                                        class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-red-500/15 text-red-500 cursor-pointer"
+                                    >
+                                        Parar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
+                                <video id="cameraVideo" class="w-full h-full object-cover" playsinline muted></video>
+                                <div class="scan-beam"></div>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2">
+                                <span id="cameraEngineLabel" class="text-[11px] font-mono" style="color: var(--text-muted);">
+                                    Motor: ZXing / BarcodeDetector
+                                </span>
+                                <label class="text-[11px] font-semibold text-blue-500 hover:underline cursor-pointer flex items-center gap-1">
+                                    <i data-lucide="image" class="w-3.5 h-3.5"></i> Ler foto do código
+                                    <input type="file" accept="image/*" capture="environment" onchange="handleImageBarcodeScan(event)" class="hidden">
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- COMPARATIVO BRUTO VS LIMPO -->
+                        <div class="pt-3 border-t grid grid-cols-2 gap-3" style="border-color: var(--border-color);">
+                            <div class="card-alt p-3 rounded-xl">
+                                <span class="block text-[10px] font-bold uppercase tracking-wider" style="color: var(--text-muted);">Código Bipado</span>
+                                <span id="rawCodeDisplay" class="font-mono text-sm font-bold truncate block mt-0.5">—</span>
+                            </div>
+                            <div class="card-alt p-3 rounded-xl">
+                                <span class="block text-[10px] font-bold uppercase tracking-wider text-emerald-500">Matrícula (8 dígitos)</span>
+                                <span id="cleanCodeDisplay" class="font-mono text-sm font-extrabold text-emerald-500 truncate block mt-0.5">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TESTE RÁPIDO DE PREFIXOS / MATRÍCULAS -->
+                    <div class="card rounded-2xl p-4 shadow-2xs space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider" style="color: var(--text-secondary);">Simular Bipagem</span>
+                            <span class="text-[11px]" style="color: var(--text-muted);">Testa sufixo "1" e prefixos</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" onclick="processBarcode('139322901')" class="text-xs font-mono px-2.5 py-1.5 rounded-lg card-alt hover:border-blue-500 transition cursor-pointer">
+                                139322901 (+1 fim)
+                            </button>
+                            <button type="button" onclick="processBarcode('00013932290')" class="text-xs font-mono px-2.5 py-1.5 rounded-lg card-alt hover:border-blue-500 transition cursor-pointer">
+                                00013932290
+                            </button>
+                            <button type="button" onclick="processBarcode('GR139235551')" class="text-xs font-mono px-2.5 py-1.5 rounded-lg card-alt hover:border-blue-500 transition cursor-pointer">
+                                GR139235551
+                            </button>
+                            <button type="button" onclick="processBarcode('00999888')" class="text-xs font-mono px-2.5 py-1.5 rounded-lg card-alt hover:border-amber-500 transition cursor-pointer">
+                                00999888 (Não cad.)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COLUNA DIREITA: RESULTADO DA IDENTIFICAÇÃO (7 cols) -->
+                <div class="lg:col-span-7 flex flex-col">
+                    <div id="identificationCard" class="card rounded-2xl p-6 sm:p-8 shadow-2xs flex-1 flex flex-col justify-between min-h-[320px]">
+
+                        <!-- ESTADO INICIAL -->
+                        <div id="stateIdle" class="my-auto text-center py-8 space-y-3">
+                            <div class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center card-alt">
+                                <i data-lucide="id-card" class="w-8 h-8" style="color: var(--accent);"></i>
+                            </div>
+                            <h2 class="text-lg sm:text-xl font-bold">Pronto para Identificar Colaborador</h2>
+                            <p class="text-xs sm:text-sm max-w-md mx-auto" style="color: var(--text-secondary);">
+                                Bipe o crachá com leitor USB/Bluetooth, use a câmera ou digite o código. Prefixos e zeros à esquerda são removidos automaticamente antes da consulta.
+                            </p>
+                        </div>
+
+                        <!-- ESTADO ENCONTRADO -->
+                        <div id="stateFound" class="hidden space-y-6">
+                            <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b" style="border-color: var(--border-color);">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                                    COLABORADOR IDENTIFICADO
+                                </span>
+                                <span id="foundTimestamp" class="text-xs font-mono" style="color: var(--text-muted);">--:--:--</span>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                <div
+                                    id="foundAvatar"
+                                    class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-extrabold text-white flex-shrink-0 btn-accent"
+                                >
+                                    GR
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <span class="text-[11px] font-bold uppercase tracking-wider" style="color: var(--text-muted);">Nome do Colaborador</span>
+                                    <h2 id="foundName" class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight break-words mt-0.5">
+                                        —
+                                    </h2>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div class="card-alt p-4 rounded-xl">
+                                    <span class="text-[11px] font-bold uppercase tracking-wider block" style="color: var(--text-muted);">Matrícula</span>
+                                    <span id="foundMatricula" class="font-mono text-2xl font-extrabold mt-1 block" style="color: var(--accent);">—</span>
+                                </div>
+                                <div class="card-alt p-4 rounded-xl sm:col-span-2">
+                                    <span class="text-[11px] font-bold uppercase tracking-wider block" style="color: var(--text-muted);">Função / Cargo</span>
+                                    <span id="foundFuncao" class="text-lg sm:text-xl font-bold mt-1 block">—</span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs" style="color: var(--text-secondary);">
+                                <span class="flex items-center gap-1.5">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                                    Lotação / Setor: <strong id="foundLotacao" class="font-semibold">—</strong>
+                                </span>
+                                <button type="button" onclick="editCurrentFoundEmployee()" class="text-blue-500 hover:underline font-semibold flex items-center gap-1 cursor-pointer">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Editar dados
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ESTADO NÃO ENCONTRADO + CADASTRO RÁPIDO -->
+                        <div id="stateNotFound" class="hidden space-y-5">
+                            <div class="flex items-center justify-between pb-3 border-b" style="border-color: var(--border-color);">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                                    <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                                    MATRÍCULA NÃO ENCONTRADA
+                                </span>
+                                <span id="notFoundTimestamp" class="text-xs font-mono" style="color: var(--text-muted);">--:--:--</span>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <p class="text-xs sm:text-sm" style="color: var(--text-secondary);">
+                                    Nenhuma ocorrência encontrada para a matrícula após remover prefixos:
+                                </p>
+                                <span id="notFoundMatricula" class="font-mono text-xl font-extrabold px-3.5 py-1.5 rounded-xl card-alt text-amber-500">
+                                    —
+                                </span>
+                            </div>
+
+                            <form onsubmit="handleQuickSave(event)" class="card-alt p-4 rounded-xl space-y-3">
+                                <h3 class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                    <i data-lucide="user-plus" class="w-4 h-4 text-blue-500"></i>
+                                    Cadastrar Colaborador (Supabase + Base Local)
+                                </h3>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium mb-1">Nome Completo *</label>
+                                        <input type="text" id="quickNomeInput" required placeholder="Ex: MARIA CLARA SOUSA" class="field-input w-full px-3 py-2 rounded-lg text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium mb-1">Função / Cargo *</label>
+                                        <input type="text" id="quickFuncaoInput" required placeholder="Ex: 0530 - Ajudante de Expedição" class="field-input w-full px-3 py-2 rounded-lg text-sm">
+                                    </div>
+                                </div>
+                                <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+                                    <div class="flex-1">
+                                        <label class="block text-xs font-medium mb-1">Lotação / Setor (Opcional)</label>
+                                        <input type="text" id="quickLotacaoInput" placeholder="Ex: 804 - Sorter Fabrica 08 1º Turno" class="field-input w-full px-3 py-2 rounded-lg text-sm">
+                                    </div>
+                                    <button type="submit" class="btn-accent py-2.5 px-4 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
+                                        <i data-lucide="save" class="w-4 h-4"></i>
+                                        Salvar e Identificar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HISTÓRICO DE BIPAGENS -->
+            <div class="card rounded-2xl p-5 shadow-2xs space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="history" class="w-5 h-5" style="color: var(--accent);"></i>
+                        <h3 class="font-bold text-sm sm:text-base">Histórico de Bipagens</h3>
+                        <span id="historyBadgeCount" class="text-xs font-mono font-bold px-2 py-0.5 rounded-full card-alt">0</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="exportHistoryCSV()" class="px-3 py-1.5 rounded-xl text-xs font-semibold card-alt hover:opacity-85 flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-500"></i> Exportar CSV
+                        </button>
+                        <button type="button" onclick="clearHistory()" class="px-3 py-1.5 rounded-xl text-xs font-semibold card-alt hover:text-red-500 flex items-center gap-1.5 cursor-pointer">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Limpar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b text-[11px] uppercase" style="border-color: var(--border-color); color: var(--text-muted);">
+                                <th class="py-2.5 px-3">Hora</th>
+                                <th class="py-2.5 px-3">Código Bruto</th>
+                                <th class="py-2.5 px-3">Matrícula</th>
+                                <th class="py-2.5 px-3">Nome</th>
+                                <th class="py-2.5 px-3">Função</th>
+                                <th class="py-2.5 px-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody" class="divide-y text-xs sm:text-sm" style="border-color: var(--border-color);"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- ABA 2: BASE DE COLABORADORES (SUPABASE + EXCEL/CSV + CRUD)      -->
+        <!-- =============================================================== -->
+        <section id="view-base" class="hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- CADASTRO / IMPORTAÇÃO (4 cols) -->
+                <div class="lg:col-span-4 space-y-4">
+                    <div class="card rounded-2xl p-5 shadow-2xs space-y-4">
+                        <h3 id="employeeFormTitle" class="font-bold text-base flex items-center gap-2">
+                            <i data-lucide="user-plus" class="w-5 h-5" style="color: var(--accent);"></i>
+                            Novo / Editar Colaborador
+                        </h3>
+
+                        <form onsubmit="handleSaveEmployeeForm(event)" class="space-y-3">
+                            <input type="hidden" id="editingMatriculaKey">
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Matrícula (sem prefixo) *</label>
+                                <input type="text" id="formMatricula" required placeholder="Ex: 13932290" class="field-input w-full px-3 py-2 rounded-xl font-mono text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Nome Completo *</label>
+                                <input type="text" id="formNome" required placeholder="Ex: ABRAAO SANTOS ROCHA" class="field-input w-full px-3 py-2 rounded-xl text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Função / Cargo *</label>
+                                <input type="text" id="formFuncao" required placeholder="Ex: 0530 - Ajudante de Expedição" class="field-input w-full px-3 py-2 rounded-xl text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold mb-1">Lotação / Setor</label>
+                                <input type="text" id="formLotacao" placeholder="Ex: 781 - Expedição Fabrica 08 1º Turno" class="field-input w-full px-3 py-2 rounded-xl text-sm">
+                            </div>
+                            <div class="flex gap-2 pt-1">
+                                <button type="submit" class="flex-1 btn-accent py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i data-lucide="check" class="w-4 h-4"></i> Salvar
+                                </button>
+                                <button type="button" id="cancelEditBtn" onclick="resetEmployeeForm()" class="hidden px-3 py-2.5 rounded-xl text-xs font-semibold card-alt cursor-pointer">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- IMPORTAR PLANILHA (.XLSX / .CSV) -->
+                    <div class="card rounded-2xl p-5 shadow-2xs space-y-3">
+                        <h3 class="font-bold text-sm flex items-center gap-2">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-500"></i>
+                            Importar Planilha (.XLSX / .CSV)
+                        </h3>
+                        <p class="text-xs" style="color: var(--text-secondary);">
+                            Importa colunas como <code class="font-mono">Código/Matrícula</code>, <code class="font-mono">Nome</code>, <code class="font-mono">Cargo/Função</code> e <code class="font-mono">Lotação</code>, removendo prefixos e enviando ao Supabase.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="flex-1 btn-accent py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i data-lucide="upload" class="w-4 h-4"></i> Selecionar Arquivo
+                                <input type="file" accept=".xlsx,.xls,.csv,.txt" onchange="handleSpreadsheetFile(event)" class="hidden">
+                            </label>
+                            <button type="button" onclick="exportDatabaseXLSX()" class="px-3 py-2.5 rounded-xl text-xs font-semibold card-alt hover:opacity-85 flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="file-down" class="w-4 h-4 text-emerald-500"></i> Exportar .XLSX
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TABELA DE COLABORADORES (8 cols) -->
+                <div class="lg:col-span-8">
+                    <div class="card rounded-2xl p-5 shadow-2xs space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="relative flex-1">
+                                <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3" style="color: var(--text-muted);"></i>
+                                <input
+                                    type="text"
+                                    id="searchEmployeeInput"
+                                    oninput="renderEmployeesTable()"
+                                    placeholder="Buscar por matrícula, nome, função ou lotação..."
+                                    class="field-input w-full pl-10 pr-3 py-2 rounded-xl text-sm"
+                                >
+                            </div>
+                            <button type="button" onclick="syncFromSupabase(true)" class="px-3.5 py-2 rounded-xl text-xs font-semibold card-alt hover:opacity-85 flex items-center justify-center gap-1.5 cursor-pointer flex-shrink-0">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-blue-500"></i> Sincronizar Supabase
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto max-h-[540px] overflow-y-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="sticky top-0 card z-10">
+                                    <tr class="border-b text-[11px] uppercase" style="border-color: var(--border-color); color: var(--text-muted);">
+                                        <th class="py-3 px-3">Matrícula</th>
+                                        <th class="py-3 px-3">Nome</th>
+                                        <th class="py-3 px-3">Função</th>
+                                        <th class="py-3 px-3">Lotação</th>
+                                        <th class="py-3 px-3 text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="employeesTableBody" class="divide-y text-xs sm:text-sm" style="border-color: var(--border-color);"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL DE CONFIGURAÇÃO (SUPABASE, COLUNAS E REGRAS DE PREFIXO) -->
+    <div id="configModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-2xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="card rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-5 my-8">
+            <div class="flex items-center justify-between pb-3 border-b" style="border-color: var(--border-color);">
+                <h2 class="text-base sm:text-lg font-bold flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-5 h-5" style="color: var(--accent);"></i>
+                    Configurações — Supabase &amp; Prefixos
+                </h2>
+                <button type="button" onclick="closeConfigModal()" class="p-1.5 rounded-lg card-alt cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Credenciais e Tabela Supabase -->
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider" style="color: var(--accent);">Conexão Supabase</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold mb-1">Supabase URL</label>
+                        <input type="text" id="cfgSupabaseUrl" class="field-input w-full px-3 py-2 rounded-xl font-mono text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Chave Pública (Publishable / anon)</label>
+                        <input type="text" id="cfgSupabaseKey" class="field-input w-full px-3 py-2 rounded-xl font-mono text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Tabela / Fonte</label>
+                        <input type="text" id="cfgSupabaseTable" class="field-input w-full px-3 py-2 rounded-xl font-mono text-xs">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div>
+                        <label class="block text-[11px] font-semibold mb-1">Col. Matrícula</label>
+                        <input type="text" id="cfgColMatricula" placeholder="auto" class="field-input w-full px-2.5 py-1.5 rounded-lg font-mono text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold mb-1">Col. Nome</label>
+                        <input type="text" id="cfgColNome" placeholder="auto" class="field-input w-full px-2.5 py-1.5 rounded-lg font-mono text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold mb-1">Col. Função</label>
+                        <input type="text" id="cfgColFuncao" placeholder="auto" class="field-input w-full px-2.5 py-1.5 rounded-lg font-mono text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold mb-1">Col. Lotação</label>
+                        <input type="text" id="cfgColLotacao" placeholder="auto" class="field-input w-full px-2.5 py-1.5 rounded-lg font-mono text-xs">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regras de Remoção de Prefixos -->
+            <div class="space-y-3 pt-3 border-t" style="border-color: var(--border-color);">
+                <h3 class="text-xs font-bold uppercase tracking-wider" style="color: var(--accent);">Normalização do Crachá (Padrão 8 Dígitos)</h3>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="flex items-center justify-between p-3 rounded-xl card-alt cursor-pointer">
+                        <span class="text-xs font-semibold">Remover "1" extra no final (ex.: ...1 → 8 dígitos)</span>
+                        <input type="checkbox" id="cfgStripTrailingOne" onchange="updateModalPrefixTest()" class="w-4 h-4 accent-blue-600 cursor-pointer">
+                    </label>
+                    <label class="flex items-center justify-between p-3 rounded-xl card-alt cursor-pointer">
+                        <span class="text-xs font-semibold">Extrair / ajustar padrão de 8 dígitos</span>
+                        <input type="checkbox" id="cfgNormalizeEightDigits" onchange="updateModalPrefixTest()" class="w-4 h-4 accent-blue-600 cursor-pointer">
+                    </label>
+                    <label class="flex items-center justify-between p-3 rounded-xl card-alt cursor-pointer">
+                        <span class="text-xs font-semibold">Remover letras e símbolos</span>
+                        <input type="checkbox" id="cfgRemoveLetters" onchange="updateModalPrefixTest()" class="w-4 h-4 accent-blue-600 cursor-pointer">
+                    </label>
+                    <label class="flex items-center justify-between p-3 rounded-xl card-alt cursor-pointer">
+                        <span class="text-xs font-semibold">Remover zeros à esquerda</span>
+                        <input type="checkbox" id="cfgRemoveLeadingZeros" onchange="updateModalPrefixTest()" class="w-4 h-4 accent-blue-600 cursor-pointer">
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Prefixos (separados por vírgula)</label>
+                        <input type="text" id="cfgCustomPrefixes" oninput="updateModalPrefixTest()" placeholder="GR, CR, 00" class="field-input w-full px-3 py-2 rounded-xl font-mono text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Cortar N do início</label>
+                        <input type="number" id="cfgStripStart" min="0" max="15" oninput="updateModalPrefixTest()" class="field-input w-full px-3 py-2 rounded-xl font-mono text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Cortar N do final</label>
+                        <input type="number" id="cfgStripEnd" min="0" max="10" oninput="updateModalPrefixTest()" class="field-input w-full px-3 py-2 rounded-xl font-mono text-xs">
+                    </div>
+                </div>
+
+                <div class="card-alt p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 flex-1">
+                        <span class="text-xs font-semibold">Teste:</span>
+                        <input type="text" id="modalTestInput" value="139322901" oninput="updateModalPrefixTest()" class="field-input px-2.5 py-1.5 rounded-lg font-mono text-xs w-44">
+                    </div>
+                    <div class="text-xs">
+                        <span>Resultado (8 dígitos): </span>
+                        <strong id="modalTestOutput" class="font-mono text-sm text-emerald-500">13932290</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-between gap-2 pt-3 border-t" style="border-color: var(--border-color);">
+                <button type="button" onclick="resetDefaultsConfig()" class="px-3.5 py-2 rounded-xl text-xs font-semibold card-alt hover:opacity-85 cursor-pointer">
+                    Restaurar Padrão Grendene
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeConfigModal()" class="px-4 py-2 rounded-xl text-xs font-semibold card-alt cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="saveConfigAndSync()" class="btn-accent px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="check" class="w-4 h-4"></i> Salvar e Sincronizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* =====================================================================
+           CONFIGURAÇÕES PADRÃO (SUPABASE GRENDENE)
+           ===================================================================== */
+        const DEFAULT_SUPABASE_CONFIG = {
+            url: 'https://dylwhnsxjbeiukdmcupq.supabase.co',
+            key: 'sb_publishable_uZL-3Z0_a-X-ZjMhwRXC9w_RP8c754J',
+            table: 'colaboradores',
+            colMatricula: '',
+            colNome: '',
+            colFuncao: '',
+            colLotacao: ''
+        };
+
+        const DEFAULT_PREFIX_CONFIG = {
+            removeLetters: true,
+            removeLeadingZeros: true,
+            stripTrailingOne: true,
+            normalizeEightDigits: true,
+            customPrefixes: 'GR, CR',
+            stripStart: 0,
+            stripEnd: 0
+        };
+
+        const STORAGE_KEYS = {
+            CONFIG: 'grendene_sb_config_v1',
+            PREFIX: 'grendene_prefix_rules_v2',
+            EMPLOYEES: 'grendene_employees_cache_v1',
+            HISTORY: 'grendene_scan_history_v1',
+            THEME: 'grendene_ui_theme_v1',
+            SOUND: 'grendene_sound_enabled_v1'
+        };
+
+        let sbConfig = { ...DEFAULT_SUPABASE_CONFIG };
+        let prefixRules = { ...DEFAULT_PREFIX_CONFIG };
+        let supabaseClient = null;
+        let employees = [];
+        let scanHistory = [];
+        let autoFocus = true;
+        let soundEnabled = true;
+
+        // Estado da câmera ZXing
+        let zxingReader = null;
+        let activeStream = null;
+        let activeVideoTrack = null;
+        let torchEnabled = false;
+        let isScanningCamera = false;
+        let lastCameraCode = '';
+        let lastCameraTime = 0;
+
+        /* =====================================================================
+           INICIALIZAÇÃO
+           ===================================================================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSavedSettings();
+            initSupabaseClient();
+            lucide.createIcons();
+            applyTheme(localStorage.getItem(STORAGE_KEYS.THEME) || 'light');
+            updateSoundIcon();
+            updatePrefixSummaryUI();
+            renderEmployeesTable();
+            renderHistoryTable();
+            focusScanInput();
+
+            // Mantém foco contínuo no campo de leitura para leitores USB/Bluetooth
+            document.addEventListener('click', (event) => {
+                if (!autoFocus) return;
+                const bipTab = document.getElementById('view-bipador');
+                if (!bipTab || bipTab.classList.contains('hidden')) return;
+                if (!document.getElementById('configModal').classList.contains('hidden')) return;
+
+                const target = event.target;
+                if (target.closest('button, input, textarea, select, label, table, a')) return;
+                focusScanInput();
+            });
+
+            syncFromSupabase(false);
+        });
+
+        function handleLogoError(imgEl) {
+            imgEl.classList.add('hidden');
+            const fallback = document.getElementById('grendeneLogoFallback');
+            if (fallback) fallback.classList.remove('hidden');
+        }
+
+        function loadSavedSettings() {
+            try {
+                const rawCfg = localStorage.getItem(STORAGE_KEYS.CONFIG);
+                if (rawCfg) sbConfig = { ...DEFAULT_SUPABASE_CONFIG, ...JSON.parse(rawCfg) };
+
+                const rawPrefix = localStorage.getItem(STORAGE_KEYS.PREFIX);
+                if (rawPrefix) prefixRules = { ...DEFAULT_PREFIX_CONFIG, ...JSON.parse(rawPrefix) };
+
+                const rawEmp = localStorage.getItem(STORAGE_KEYS.EMPLOYEES);
+                if (rawEmp) employees = JSON.parse(rawEmp);
+
+                const rawHist = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                if (rawHist) scanHistory = JSON.parse(rawHist);
+
+                const rawSound = localStorage.getItem(STORAGE_KEYS.SOUND);
+                if (rawSound !== null) soundEnabled = JSON.parse(rawSound);
+            } catch (err) {
+                console.warn('Falha ao ler configurações locais:', err);
+            }
+            const badgeEl = document.getElementById('sourceModeBadge');
+            if (badgeEl) {
+                badgeEl.textContent = prefixRules.stripTrailingOne ? 'Padrão: 8 dígitos • -1 final' : `Supabase: ${sbConfig.table || 'colaboradores'}`;
+            }
+        }
+
+        function initSupabaseClient() {
+            if (!window.supabase || !window.supabase.createClient) {
+                supabaseClient = null;
+                return;
+            }
+            try {
+                supabaseClient = window.supabase.createClient(sbConfig.url.trim(), sbConfig.key.trim());
+            } catch (err) {
+                console.error('Erro ao inicializar cliente Supabase:', err);
+                supabaseClient = null;
+            }
+        }
+
+        /* =====================================================================
+           REMOÇÃO DE PREFIXOS E NORMALIZAÇÃO PADRÃO 8 DÍGITOS
+           ===================================================================== */
+        function cleanBarcodePrefix(rawCode) {
+            if (rawCode === null || rawCode === undefined) return '';
+            let code = String(rawCode).trim().toUpperCase();
+            if (!code) return '';
+
+            // 1. Prefixos customizados configurados no início (ex.: GR, CR, 00)
+            if (prefixRules.customPrefixes && prefixRules.customPrefixes.trim()) {
+                const prefixes = prefixRules.customPrefixes
+                    .split(',')
+                    .map((p) => p.trim().toUpperCase())
+                    .filter(Boolean)
+                    .sort((a, b) => b.length - a.length);
+
+                for (const prefix of prefixes) {
+                    if (code.startsWith(prefix)) {
+                        code = code.slice(prefix.length);
+                        break;
+                    }
+                }
+            }
+
+            // 2. Corte fixo no início
+            const stripStart = Math.max(0, parseInt(prefixRules.stripStart, 10) || 0);
+            if (stripStart > 0 && code.length > stripStart) {
+                code = code.slice(stripStart);
+            }
+
+            // 3. Corte fixo no final
+            const stripEnd = Math.max(0, parseInt(prefixRules.stripEnd, 10) || 0);
+            if (stripEnd > 0 && code.length > stripEnd) {
+                code = code.slice(0, -stripEnd);
+            }
+
+            // 4. Remover letras e símbolos (mantém apenas dígitos quando ativo)
+            if (prefixRules.removeLetters) {
+                code = code.replace(/[^0-9]/g, '');
+            } else {
+                code = code.replace(/\s+/g, '');
+            }
+
+            // 5. Remover sufixo "1" residual quando excede 8 dígitos ou termina em "1" após 8 dígitos
+            if (prefixRules.stripTrailingOne && /^[0-9]+$/.test(code)) {
+                if (code.length > 8 && code.endsWith('1')) {
+                    code = code.slice(0, -1);
+                }
+            }
+
+            // 6. Normalizar para o padrão de 8 dígitos da Grendene (ex.: 13932290)
+            if (prefixRules.normalizeEightDigits && /^[0-9]+$/.test(code)) {
+                if (code.length > 8) {
+                    // Se o último dígito for '1' e os primeiros 8 formarem a matrícula, prioriza os 8 primeiros
+                    if (code.endsWith('1')) {
+                        code = code.slice(0, 8);
+                    } else {
+                        code = code.slice(-8);
+                    }
+                }
+            }
+
+            // 7. Remover zeros à esquerda apenas se não reduzir abaixo do necessário ou quando não for 8 dígitos exatos
+            if (prefixRules.removeLeadingZeros && code.length > 1 && !(prefixRules.normalizeEightDigits && code.length === 8)) {
+                code = code.replace(/^0+/, '') || '0';
+            }
+
+            return code;
+        }
+
+        function updatePrefixSummaryUI() {
+            const parts = [];
+            if (prefixRules.normalizeEightDigits) parts.push('8 dígitos');
+            if (prefixRules.stripTrailingOne) parts.push('Sem "1" final');
+            if (prefixRules.customPrefixes && prefixRules.customPrefixes.trim()) {
+                parts.push(prefixRules.customPrefixes.trim());
+            }
+            if (prefixRules.removeLetters) parts.push('Só números');
+            if (prefixRules.removeLeadingZeros) parts.push('Sem zeros à esq.');
+            if ((parseInt(prefixRules.stripStart, 10) || 0) > 0) parts.push(`-${prefixRules.stripStart} iníc.`);
+            if ((parseInt(prefixRules.stripEnd, 10) || 0) > 0) parts.push(`-${prefixRules.stripEnd} fim`);
+
+            const summary = parts.length > 0 ? parts.join(' • ') : 'Sem filtro';
+            const el = document.getElementById('activePrefixSummary');
+            if (el) el.textContent = summary;
+
+            const badgeEl = document.getElementById('sourceModeBadge');
+            if (badgeEl) {
+                badgeEl.textContent = prefixRules.stripTrailingOne
+                    ? 'Padrão: 8 dígitos • -1 final'
+                    : `Supabase: ${sbConfig.table || 'colaboradores'}`;
+            }
+        }
+
+        /* =====================================================================
+           IDENTIFICAÇÃO E HISTÓRICO
+           ===================================================================== */
+        function handleScanSubmit(event) {
+            event.preventDefault();
+            const input = document.getElementById('barcodeInput');
+            const raw = input.value.trim();
+            if (!raw) {
+                showToast('Bipe um crachá ou digite uma matrícula.', 'warning');
+                return;
+            }
+            processBarcode(raw);
+            input.value = '';
+            focusScanInput();
+        }
+
+        function processBarcode(rawCode) {
+            const rawStr = String(rawCode || '').trim();
+            const cleanMatricula = cleanBarcodePrefix(rawStr);
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString('pt-BR');
+
+            document.getElementById('rawCodeDisplay').textContent = rawStr || '—';
+            document.getElementById('cleanCodeDisplay').textContent = cleanMatricula || '(vazio)';
+
+            if (!cleanMatricula) {
+                playBeep('error');
+                showToast('Código vazio após remover prefixos.', 'warning');
+                return;
+            }
+
+            const match = employees.find(
+                (item) => cleanBarcodePrefix(item.matricula) === cleanMatricula || String(item.matricula).trim() === cleanMatricula
+            );
+
+            const card = document.getElementById('identificationCard');
+            const stateIdle = document.getElementById('stateIdle');
+            const stateFound = document.getElementById('stateFound');
+            const stateNotFound = document.getElementById('stateNotFound');
+
+            stateIdle.classList.add('hidden');
+            card.classList.remove('flash-found', 'flash-warn');
+            void card.offsetWidth;
+
+            if (match) {
+                stateNotFound.classList.add('hidden');
+                stateFound.classList.remove('hidden');
+                card.classList.add('flash-found');
+
+                document.getElementById('foundTimestamp').textContent = `${now.toLocaleDateString('pt-BR')} • ${timeLabel}`;
+                document.getElementById('foundName').textContent = match.nome;
+                document.getElementById('foundMatricula').textContent = match.matricula;
+                document.getElementById('foundFuncao').textContent = match.funcao || '—';
+                document.getElementById('foundLotacao').textContent = match.lotacao || 'Não informada';
+
+                const initials = match.nome
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((p) => p[0])
+                    .join('')
+                    .toUpperCase();
+                document.getElementById('foundAvatar').textContent = initials || 'GR';
+
+                playBeep('success');
+                vibrateSafe([65]);
+                pushHistory({
+                    time: timeLabel,
+                    rawCode: rawStr,
+                    matricula: match.matricula,
+                    nome: match.nome,
+                    funcao: match.funcao || '—',
+                    found: true
+                });
+            } else {
+                stateFound.classList.add('hidden');
+                stateNotFound.classList.remove('hidden');
+                card.classList.add('flash-warn');
+
+                document.getElementById('notFoundTimestamp').textContent = timeLabel;
+                document.getElementById('notFoundMatricula').textContent = cleanMatricula;
+                document.getElementById('quickNomeInput').value = '';
+                document.getElementById('quickFuncaoInput').value = '';
+                document.getElementById('quickLotacaoInput').value = '';
+
+                playBeep('error');
+                vibrateSafe([110, 60, 110]);
+                pushHistory({
+                    time: timeLabel,
+                    rawCode: rawStr,
+                    matricula: cleanMatricula,
+                    nome: 'NÃO CADASTRADO',
+                    funcao: '—',
+                    found: false
+                });
+            }
+        }
+
+        async function handleQuickSave(event) {
+            event.preventDefault();
+            const matricula = cleanBarcodePrefix(document.getElementById('notFoundMatricula').textContent);
+            const nome = document.getElementById('quickNomeInput').value.trim().toUpperCase();
+            const funcao = document.getElementById('quickFuncaoInput').value.trim();
+            const lotacao = document.getElementById('quickLotacaoInput').value.trim();
+
+            if (!matricula || !nome || !funcao) return;
+
+            const record = { matricula, nome, funcao, lotacao };
+            saveOrUpdateLocalEmployee(record);
+            const sbRes = await upsertEmployeeToSupabase(record);
+
+            if (sbRes.ok) {
+                showToast(`Colaborador ${nome} salvo no Supabase!`, 'success');
+            } else {
+                showToast(`Salvo localmente. Supabase: ${sbRes.error}`, 'warning');
+            }
+
+            processBarcode(matricula);
+            focusScanInput();
+        }
+
+        function pushHistory(entry) {
+            scanHistory.unshift(entry);
+            if (scanHistory.length > 150) scanHistory.pop();
+            localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(scanHistory));
+            renderHistoryTable();
+        }
+
+        function renderHistoryTable() {
+            const tbody = document.getElementById('historyBody');
+            document.getElementById('historyBadgeCount').textContent = scanHistory.length;
+
+            if (scanHistory.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-6 text-center text-xs" style="color: var(--text-muted);">
+                            Nenhuma bipagem registrada nesta sessão.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = scanHistory.map((item) => `
+                <tr class="hover:bg-blue-500/5">
+                    <td class="py-2.5 px-3 font-mono text-xs" style="color: var(--text-muted);">${escapeHTML(item.time)}</td>
+                    <td class="py-2.5 px-3 font-mono text-xs">${escapeHTML(item.rawCode)}</td>
+                    <td class="py-2.5 px-3 font-mono font-bold" style="color: var(--accent);">${escapeHTML(item.matricula)}</td>
+                    <td class="py-2.5 px-3 font-semibold">${escapeHTML(item.nome)}</td>
+                    <td class="py-2.5 px-3 text-xs">${escapeHTML(item.funcao)}</td>
+                    <td class="py-2.5 px-3">
+                        ${item.found
+                            ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-500">Identificado</span>'
+                            : '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500">Não Cadastrado</span>'
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function clearHistory() {
+            scanHistory = [];
+            localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(scanHistory));
+            renderHistoryTable();
+            showToast('Histórico limpo.', 'info');
+        }
+
+        function exportHistoryCSV() {
+            if (scanHistory.length === 0) {
+                showToast('Não há bipagens para exportar.', 'warning');
+                return;
+            }
+            let csv = 'Hora;Codigo_Bruto;Matricula;Nome;Funcao;Status\n';
+            scanHistory.forEach((h) => {
+                csv += `${h.time};${h.rawCode};${h.matricula};${h.nome};${h.funcao};${h.found ? 'Identificado' : 'Nao Cadastrado'}\n`;
+            });
+            downloadFile(csv, `bipagens_grendene_${dateStamp()}.csv`, 'text/csv;charset=utf-8;');
+        }
+
+        /* =====================================================================
+           BASE DE COLABORADORES (CRUD + EXCEL/CSV)
+           ===================================================================== */
+        function saveOrUpdateLocalEmployee(record, originalKey = '') {
+            if (originalKey && originalKey !== record.matricula) {
+                employees = employees.filter((e) => e.matricula !== originalKey);
+            }
+            const idx = employees.findIndex((e) => e.matricula === record.matricula);
+            if (idx >= 0) {
+                employees[idx] = { ...record };
+            } else {
+                employees.unshift({ ...record });
+            }
+            localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+            renderEmployeesTable();
+        }
+
+        async function handleSaveEmployeeForm(event) {
+            event.preventDefault();
+            const originalKey = document.getElementById('editingMatriculaKey').value.trim();
+            const matricula = cleanBarcodePrefix(document.getElementById('formMatricula').value);
+            const nome = document.getElementById('formNome').value.trim().toUpperCase();
+            const funcao = document.getElementById('formFuncao').value.trim();
+            const lotacao = document.getElementById('formLotacao').value.trim();
+
+            if (!matricula || !nome || !funcao) {
+                showToast('Preencha matrícula, nome e função.', 'warning');
+                return;
+            }
+
+            const record = { matricula, nome, funcao, lotacao };
+            saveOrUpdateLocalEmployee(record, originalKey);
+
+            if (originalKey && originalKey !== matricula) {
+                await deleteEmployeeFromSupabase(originalKey);
+            }
+            const sbRes = await upsertEmployeeToSupabase(record);
+
+            if (sbRes.ok) {
+                showToast('Colaborador salvo no Supabase!', 'success');
+            } else {
+                showToast(`Salvo localmente. Supabase: ${sbRes.error}`, 'warning');
+            }
+            resetEmployeeForm();
+        }
+
+        function editEmployee(matricula) {
+            const emp = employees.find((e) => e.matricula === matricula);
+            if (!emp) return;
+            switchTab('base');
+            document.getElementById('employeeFormTitle').innerHTML = `<i data-lucide="pencil" class="w-5 h-5 text-blue-500"></i> Editar Colaborador`;
+            document.getElementById('editingMatriculaKey').value = emp.matricula;
+            document.getElementById('formMatricula').value = emp.matricula;
+            document.getElementById('formNome').value = emp.nome;
+            document.getElementById('formFuncao').value = emp.funcao;
+            document.getElementById('formLotacao').value = emp.lotacao || '';
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function editCurrentFoundEmployee() {
+            const mat = document.getElementById('foundMatricula').textContent.trim();
+            editEmployee(mat);
+        }
+
+        function resetEmployeeForm() {
+            document.getElementById('employeeFormTitle').innerHTML = `<i data-lucide="user-plus" class="w-5 h-5" style="color: var(--accent);"></i> Novo / Editar Colaborador`;
+            document.getElementById('editingMatriculaKey').value = '';
+            document.getElementById('formMatricula').value = '';
+            document.getElementById('formNome').value = '';
+            document.getElementById('formFuncao').value = '';
+            document.getElementById('formLotacao').value = '';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            lucide.createIcons();
+        }
+
+        async function removeEmployee(matricula) {
+            employees = employees.filter((e) => e.matricula !== matricula);
+            localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+            renderEmployeesTable();
+            await deleteEmployeeFromSupabase(matricula);
+            showToast(`Matrícula ${matricula} removida.`, 'info');
+        }
+
+        function simulateScanFromTable(matricula) {
+            switchTab('bipador');
+            processBarcode(matricula);
+        }
+
+        function renderEmployeesTable() {
+            const tbody = document.getElementById('employeesTableBody');
+            const query = (document.getElementById('searchEmployeeInput').value || '').toLowerCase().trim();
+            document.getElementById('totalColaboradoresBadge').textContent = employees.length;
+
+            const filtered = employees.filter((emp) =>
+                emp.matricula.toLowerCase().includes(query) ||
+                emp.nome.toLowerCase().includes(query) ||
+                emp.funcao.toLowerCase().includes(query) ||
+                (emp.lotacao && emp.lotacao.toLowerCase().includes(query))
+            );
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-xs" style="color: var(--text-muted);">
+                            Nenhum colaborador encontrado na base.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map((emp) => `
+                <tr class="hover:bg-blue-500/5">
+                    <td class="py-3 px-3 font-mono font-bold" style="color: var(--accent);">${escapeHTML(emp.matricula)}</td>
+                    <td class="py-3 px-3 font-semibold">${escapeHTML(emp.nome)}</td>
+                    <td class="py-3 px-3 text-xs font-medium">${escapeHTML(emp.funcao)}</td>
+                    <td class="py-3 px-3 text-xs" style="color: var(--text-secondary);">${escapeHTML(emp.lotacao || '—')}</td>
+                    <td class="py-3 px-3 text-right whitespace-nowrap">
+                        <button type="button" onclick="simulateScanFromTable('${escapeHTML(emp.matricula)}')" title="Simular bipagem" class="p-1.5 rounded-lg hover:bg-emerald-500/15 text-emerald-500 cursor-pointer">
+                            <i data-lucide="barcode" class="w-4 h-4"></i>
+                        </button>
+                        <button type="button" onclick="editEmployee('${escapeHTML(emp.matricula)}')" title="Editar" class="p-1.5 rounded-lg hover:bg-blue-500/15 text-blue-500 cursor-pointer">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                        <button type="button" onclick="removeEmployee('${escapeHTML(emp.matricula)}')" title="Excluir" class="p-1.5 rounded-lg hover:bg-red-500/15 text-red-500 cursor-pointer">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function handleSpreadsheetFile(event) {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+
+            if (typeof XLSX === 'undefined') {
+                showToast('Biblioteca SheetJS não disponível.', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const data = new Uint8Array(ev.target.result);
+                    const wb = XLSX.read(data, { type: 'array', raw: false });
+                    const firstSheet = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '', raw: false });
+
+                    const imported = [];
+                    const seen = new Set();
+                    rows.forEach((row) => {
+                        const mapped = mapSupabaseRow(row);
+                        if (mapped && !seen.has(mapped.matricula)) {
+                            seen.add(mapped.matricula);
+                            imported.push(mapped);
+                        }
+                    });
+
+                    if (imported.length === 0) {
+                        showToast('Nenhuma linha válida encontrada na planilha.', 'warning');
+                        return;
+                    }
+
+                    imported.forEach((item) => saveOrUpdateLocalEmployee(item));
+                    showToast(`${imported.length} colaborador(es) carregado(s). Sincronizando com Supabase...`, 'info');
+
+                    if (supabaseClient) {
+                        const tableName = (sbConfig.table || 'colaboradores').trim();
+                        const matCol = (sbConfig.colMatricula || 'matricula').trim();
+                        const nomeCol = (sbConfig.colNome || 'nome').trim();
+                        const funcaoCol = (sbConfig.colFuncao || 'funcao').trim();
+                        const lotacaoCol = (sbConfig.colLotacao || 'lotacao').trim();
+
+                        const payload = imported.map((item) => ({
+                            [matCol]: item.matricula,
+                            [nomeCol]: item.nome,
+                            [funcaoCol]: item.funcao,
+                            [lotacaoCol]: item.lotacao || ''
+                        }));
+
+                        for (let i = 0; i < payload.length; i += 250) {
+                            const chunk = payload.slice(i, i + 250);
+                            const { error } = await supabaseClient
+                                .from(tableName)
+                                .upsert(chunk, { onConflict: matCol });
+                            if (error) throw error;
+                        }
+                        showToast(`Planilha sincronizada com o Supabase (${imported.length} registros)!`, 'success');
+                    }
+                } catch (err) {
+                    console.error('Erro ao importar planilha:', err);
+                    showToast(`Erro ao importar planilha: ${err?.message || err}`, 'warning');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function exportDatabaseXLSX() {
+            if (typeof XLSX === 'undefined') {
+                showToast('Biblioteca SheetJS não disponível.', 'error');
+                return;
+            }
+            if (employees.length === 0) {
+                showToast('Base vazia para exportar.', 'warning');
+                return;
+            }
+            const ws = XLSX.utils.json_to_sheet(employees.map((e) => ({
+                Matricula: e.matricula,
+                Nome: e.nome,
+                Funcao: e.funcao,
+                Lotacao: e.lotacao || ''
+            })));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Colaboradores');
+            XLSX.writeFile(wb, `colaboradores_grendene_${dateStamp()}.xlsx`);
+        }
+
+        /* =====================================================================
+           BIPADOR VIA CÂMERA (ZXING + BARCODEDETECTOR + IMAGEM)
+           ===================================================================== */
+        async function toggleCamera() {
+            if (isScanningCamera) {
+                await stopCamera();
+            } else {
+                await startCamera();
+            }
+        }
+
+        async function startCamera() {
+            if (!window.ZXing || !window.ZXing.BrowserMultiFormatReader) {
+                showToast('Leitor de câmera ZXing indisponível. Use o campo de texto ou foto.', 'warning');
+                return;
+            }
+
+            const panel = document.getElementById('cameraPanel');
+            const videoEl = document.getElementById('cameraVideo');
+            const labelEl = document.getElementById('cameraToggleLabel');
+            const engineEl = document.getElementById('cameraEngineLabel');
+
+            panel.classList.remove('hidden');
+            labelEl.textContent = 'Parar Câmera';
+
+            try {
+                if (!zxingReader) {
+                    zxingReader = new window.ZXing.BrowserMultiFormatReader();
+                }
+
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+
+                activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoEl.srcObject = activeStream;
+                await videoEl.play();
+
+                activeVideoTrack = activeStream.getVideoTracks()[0] || null;
+                if (activeVideoTrack && activeVideoTrack.getCapabilities) {
+                    const caps = activeVideoTrack.getCapabilities();
+                    if (caps.torch) {
+                        document.getElementById('torchBtn').classList.remove('hidden');
+                    }
+                }
+
+                isScanningCamera = true;
+                const hasNativeDetector = typeof window.BarcodeDetector !== 'undefined';
+                engineEl.textContent = hasNativeDetector
+                    ? 'Motor: BarcodeDetector + ZXing ativo'
+                    : 'Motor: ZXing MultiFormat ativo';
+
+                let nativeDetector = null;
+                if (hasNativeDetector) {
+                    try {
+                        nativeDetector = new window.BarcodeDetector({
+                            formats: ['code_128', 'code_39', 'code_93', 'codabar', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'qr_code']
+                        });
+                    } catch (_) {
+                        nativeDetector = null;
+                    }
+                }
+
+                zxingReader.decodeFromStream(activeStream, videoEl, async (result) => {
+                    if (!isScanningCamera) return;
+                    if (result && result.getText) {
+                        consumeCameraCode(result.getText());
+                        return;
+                    }
+                    if (nativeDetector && videoEl.readyState >= 2) {
+                        try {
+                            const codes = await nativeDetector.detect(videoEl);
+                            if (codes && codes.length > 0 && codes[0].rawValue) {
+                                consumeCameraCode(codes[0].rawValue);
+                            }
+                        } catch (_) {
+                            // Ignora frame não decodificado
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error('Erro ao abrir câmera:', err);
+                showToast('Não foi possível acessar a câmera. Verifique as permissões.', 'error');
+                await stopCamera();
+            }
+        }
+
+        function consumeCameraCode(codeText) {
+            const cleaned = String(codeText || '').trim();
+            if (!cleaned) return;
+            const now = Date.now();
+            if (cleaned === lastCameraCode && (now - lastCameraTime) < 1800) return;
+            lastCameraCode = cleaned;
+            lastCameraTime = now;
+            processBarcode(cleaned);
+        }
+
+        async function stopCamera() {
+            isScanningCamera = false;
+            torchEnabled = false;
+
+            if (zxingReader) {
+                try {
+                    zxingReader.reset();
+                } catch (_) {}
+            }
+
+            if (activeStream) {
+                activeStream.getTracks().forEach((track) => track.stop());
+                activeStream = null;
+            }
+            activeVideoTrack = null;
+
+            const videoEl = document.getElementById('cameraVideo');
+            if (videoEl) videoEl.srcObject = null;
+
+            document.getElementById('cameraPanel').classList.add('hidden');
+            document.getElementById('torchBtn').classList.add('hidden');
+            document.getElementById('cameraToggleLabel').textContent = 'Bipar Câmera';
+            focusScanInput();
+        }
+
+        async function toggleTorch() {
+            if (!activeVideoTrack || !activeVideoTrack.applyConstraints) return;
+            try {
+                torchEnabled = !torchEnabled;
+                await activeVideoTrack.applyConstraints({ advanced: [{ torch: torchEnabled }] });
+                showToast(torchEnabled ? 'Flash ativado' : 'Flash desativado', 'info');
+            } catch (_) {
+                showToast('Flash não suportado neste dispositivo.', 'warning');
+            }
+        }
+
+        function handleImageBarcodeScan(event) {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            if (!file || !window.ZXing || !window.ZXing.BrowserMultiFormatReader) return;
+
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const tempReader = new window.ZXing.BrowserMultiFormatReader();
+                    const res = await tempReader.decodeFromImageUrl(ev.target.result);
+                    if (res && res.getText) {
+                        processBarcode(res.getText());
+                    } else {
+                        showToast('Nenhum código encontrado na imagem.', 'warning');
+                    }
+                } catch (_) {
+                    showToast('Não foi possível ler código de barras nesta foto.', 'warning');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        /* =====================================================================
+           MODAL DE CONFIGURAÇÃO
+           ===================================================================== */
+        function openConfigModal() {
+            document.getElementById('cfgSupabaseUrl').value = sbConfig.url;
+            document.getElementById('cfgSupabaseKey').value = sbConfig.key;
+            document.getElementById('cfgSupabaseTable').value = sbConfig.table;
+            document.getElementById('cfgColMatricula').value = sbConfig.colMatricula;
+            document.getElementById('cfgColNome').value = sbConfig.colNome;
+            document.getElementById('cfgColFuncao').value = sbConfig.colFuncao;
+            document.getElementById('cfgColLotacao').value = sbConfig.colLotacao;
+
+            document.getElementById('cfgRemoveLetters').checked = prefixRules.removeLetters;
+            document.getElementById('cfgRemoveLeadingZeros').checked = prefixRules.removeLeadingZeros;
+            document.getElementById('cfgStripTrailingOne').checked = prefixRules.stripTrailingOne;
+            document.getElementById('cfgNormalizeEightDigits').checked = prefixRules.normalizeEightDigits;
+            document.getElementById('cfgCustomPrefixes').value = prefixRules.customPrefixes;
+            document.getElementById('cfgStripStart').value = prefixRules.stripStart;
+            document.getElementById('cfgStripEnd').value = prefixRules.stripEnd;
+
+            updateModalPrefixTest();
+            document.getElementById('configModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeConfigModal() {
+            document.getElementById('configModal').classList.add('hidden');
+            focusScanInput();
+        }
+
+        function resetDefaultsConfig() {
+            sbConfig = { ...DEFAULT_SUPABASE_CONFIG };
+            prefixRules = { ...DEFAULT_PREFIX_CONFIG };
+            openConfigModal();
+            showToast('Valores padrão da Grendene preenchidos.', 'info');
+        }
+
+        function readPrefixRulesFromModal() {
+            return {
+                removeLetters: document.getElementById('cfgRemoveLetters').checked,
+                removeLeadingZeros: document.getElementById('cfgRemoveLeadingZeros').checked,
+                stripTrailingOne: document.getElementById('cfgStripTrailingOne').checked,
+                normalizeEightDigits: document.getElementById('cfgNormalizeEightDigits').checked,
+                customPrefixes: document.getElementById('cfgCustomPrefixes').value,
+                stripStart: Math.max(0, parseInt(document.getElementById('cfgStripStart').value, 10) || 0),
+                stripEnd: Math.max(0, parseInt(document.getElementById('cfgStripEnd').value, 10) || 0)
+            };
+        }
+
+        function updateModalPrefixTest() {
+            const snapshot = prefixRules;
+            prefixRules = readPrefixRulesFromModal();
+            const testVal = document.getElementById('modalTestInput').value;
+            document.getElementById('modalTestOutput').textContent = cleanBarcodePrefix(testVal) || '(vazio)';
+            prefixRules = snapshot;
+        }
+
+        async function saveConfigAndSync() {
+            sbConfig = {
+                url: (document.getElementById('cfgSupabaseUrl').value || '').trim() || DEFAULT_SUPABASE_CONFIG.url,
+                key: (document.getElementById('cfgSupabaseKey').value || '').trim() || DEFAULT_SUPABASE_CONFIG.key,
+                table: (document.getElementById('cfgSupabaseTable').value || '').trim() || DEFAULT_SUPABASE_CONFIG.table,
+                colMatricula: (document.getElementById('cfgColMatricula').value || '').trim(),
+                colNome: (document.getElementById('cfgColNome').value || '').trim(),
+                colFuncao: (document.getElementById('cfgColFuncao').value || '').trim(),
+                colLotacao: (document.getElementById('cfgColLotacao').value || '').trim()
+            };
+            prefixRules = readPrefixRulesFromModal();
+
+            localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(sbConfig));
+            localStorage.setItem(STORAGE_KEYS.PREFIX, JSON.stringify(prefixRules));
+
+            updatePrefixSummaryUI();
+            closeConfigModal();
+            await syncFromSupabase(true);
+        }
+
+        /* =====================================================================
+           SOM, FOCO, TEMA, ABAS E UTILITÁRIOS
+           ===================================================================== */
+        function playBeep(type) {
+            if (!soundEnabled) return;
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioContextClass();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'success') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1480, ctx.currentTime);
+                    osc.frequency.setValueAtTime(1920, ctx.currentTime + 0.06);
+                    gain.gain.setValueAtTime(0.22, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.16);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.16);
+                } else {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(260, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.22, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.12);
+                }
+            } catch (_) {}
+        }
+
+        function vibrateSafe(pattern) {
+            if (navigator.vibrate) {
+                try {
+                    navigator.vibrate(pattern);
+                } catch (_) {}
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            localStorage.setItem(STORAGE_KEYS.SOUND, JSON.stringify(soundEnabled));
+            updateSoundIcon();
+            if (soundEnabled) playBeep('success');
+        }
+
+        function updateSoundIcon() {
+            const icon = document.getElementById('soundIcon');
+            if (!icon) return;
+            icon.setAttribute('data-lucide', soundEnabled ? 'volume-2' : 'volume-x');
+            icon.className = soundEnabled ? 'w-4 h-4 text-blue-500' : 'w-4 h-4 text-slate-400';
+            lucide.createIcons();
+        }
+
+        function toggleAutoFocus() {
+            autoFocus = !autoFocus;
+            const stateEl = document.getElementById('autoFocusState');
+            stateEl.textContent = autoFocus ? 'ON' : 'OFF';
+            stateEl.className = autoFocus ? 'font-mono font-bold text-emerald-500' : 'font-mono font-bold text-slate-400';
+            if (autoFocus) focusScanInput();
+            showToast(autoFocus ? 'Foco automático ativado' : 'Foco automático desativado', 'info');
+        }
+
+        function focusScanInput() {
+            if (!autoFocus) return;
+            const input = document.getElementById('barcodeInput');
+            if (input) input.focus();
+        }
+
+        function clearScanInput() {
+            const input = document.getElementById('barcodeInput');
+            input.value = '';
+            focusScanInput();
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : 'light';
+            applyTheme(next);
+            localStorage.setItem(STORAGE_KEYS.THEME, next);
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+                lucide.createIcons();
+            }
+        }
+
+        async function switchTab(tabName) {
+            const isBip = tabName === 'bipador';
+            document.getElementById('view-bipador').classList.toggle('hidden', !isBip);
+            document.getElementById('view-base').classList.toggle('hidden', isBip);
+
+            const tabBip = document.getElementById('tab-bipador');
+            const tabBase = document.getElementById('tab-base');
+
+            if (isBip) {
+                tabBip.className = 'flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-blue-600 text-blue-600 whitespace-nowrap cursor-pointer';
+                tabBase.className = 'flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent whitespace-nowrap cursor-pointer';
+                tabBase.style.color = 'var(--text-secondary)';
+                focusScanInput();
+            } else {
+                tabBase.className = 'flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-blue-600 text-blue-600 whitespace-nowrap cursor-pointer';
+                tabBip.className = 'flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent whitespace-nowrap cursor-pointer';
+                tabBip.style.color = 'var(--text-secondary)';
+                if (isScanningCamera) await stopCamera();
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const area = document.getElementById('toastArea');
+            const palette = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-red-600 text-white',
+                warning: 'bg-amber-500 text-slate-950',
+                info: 'bg-slate-800 text-white'
+            };
+            const el = document.createElement('div');
+            el.className = `${palette[type] || palette.info} px-4 py-3 rounded-xl shadow-lg text-xs font-semibold pointer-events-auto transition-all duration-300`;
+            el.textContent = message;
+            area.appendChild(el);
+
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(8px)';
+                setTimeout(() => el.remove(), 280);
+            }, 3200);
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob(['\uFEFF' + content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function dateStamp() {
+            const d = new Date();
+            return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function escapeHTML(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
+```
