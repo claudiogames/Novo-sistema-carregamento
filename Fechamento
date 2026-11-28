@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fechamento 2026 - Controle de Caixas</title>
+    <style>
+        :root {
+            --bg-app: #eef2f7;
+            --bg-card: #ffffff;
+            --bg-subtle: #f8fafc;
+            --bg-header: #1e293b;
+            --bg-th: #2563eb;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #cbd5e1;
+            --accent: #2563eb;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --row-hover: #eff6ff;
+        }
+
+        body.theme-dark {
+            --bg-app: #0b1120;
+            --bg-card: #111827;
+            --bg-subtle: #1e293b;
+            --bg-header: #090d16;
+            --bg-th: #1d4ed8;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --accent: #3b82f6;
+            --row-hover: #172554;
+        }
+
+        body.theme-erp {
+            --bg-app: #d8e1ed;
+            --bg-card: #ffffff;
+            --bg-subtle: #e9eff7;
+            --bg-header: #26354d;
+            --bg-th: #2c66a8;
+            --text-main: #1e293b;
+            --text-muted: #475569;
+            --border-color: #b4c2d4;
+            --accent: #2c66a8;
+            --row-hover: #e6f0fa;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-app);
+            color: var(--text-main);
+        }
+
+        .topbar {
+            background-color: var(--bg-header);
+            color: #ffffff;
+            padding: 10px 14px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .topbar-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .topbar-sub {
+            font-size: 11px;
+            color: #cbd5e1;
+        }
+
+        .container {
+            max-width: 1480px;
+            margin: 0 auto;
+            padding: 12px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(140px, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 760px) {
+            .kpi-grid { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 9px 11px;
+        }
+
+        .kpi-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .kpi-val {
+            font-size: 19px;
+            font-weight: 800;
+            font-family: monospace;
+            margin-top: 2px;
+        }
+
+        /* INDICADORES DE FABRICAS (1 A 8) */
+        .fab-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 9px 11px;
+            margin-bottom: 10px;
+        }
+
+        .fab-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .fab-grid {
+            display: grid;
+            grid-template-columns: repeat(8, minmax(84px, 1fr));
+            gap: 6px;
+        }
+
+        @media (max-width: 900px) {
+            .fab-grid { grid-template-columns: repeat(4, minmax(75px, 1fr)); }
+        }
+
+        @media (max-width: 460px) {
+            .fab-grid { grid-template-columns: repeat(2, minmax(75px, 1fr)); }
+        }
+
+        .fab-card {
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 7px 8px;
+            text-align: left;
+            cursor: pointer;
+            color: var(--text-main);
+            transition: border-color 0.15s, transform 0.1s;
+        }
+
+        .fab-card:hover {
+            border-color: var(--accent);
+        }
+
+        .fab-card.pendente {
+            background: #fef2f2;
+            border-color: #f87171;
+        }
+
+        body.theme-dark .fab-card.pendente {
+            background: #3b1219;
+            border-color: #ef4444;
+        }
+
+        .fab-card.selecionada {
+            box-shadow: inset 0 0 0 2px var(--accent);
+            border-color: var(--accent);
+        }
+
+        .fab-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .fab-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+            display: inline-block;
+        }
+
+        .fab-card.pendente .fab-dot {
+            background: #dc2626;
+        }
+
+        .fab-num {
+            font-size: 17px;
+            font-weight: 800;
+            font-family: monospace;
+            margin-top: 2px;
+        }
+
+        .fab-card.pendente .fab-num {
+            color: #dc2626;
+        }
+
+        body.theme-dark .fab-card.pendente .fab-num {
+            color: #fca5a5;
+        }
+
+        .fab-sub {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            background: var(--bg-subtle);
+            border-bottom: 1px solid var(--border-color);
+            padding: 9px 12px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .input-ctrl, .select-ctrl {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+
+        .btn {
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 7px 11px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn:active { transform: scale(0.99); }
+        .btn-primary { background: var(--accent); color: #ffffff; }
+        .btn-success { background: var(--success); color: #ffffff; }
+        .btn-danger { background: var(--danger); color: #ffffff; }
+        .btn-ghost {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border-color: var(--border-color);
+        }
+        .topbar .btn-ghost {
+            background: transparent;
+            color: #f1f5f9;
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            max-height: 62vh;
+        }
+
+        table.grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1220px;
+        }
+
+        table.grid-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 4;
+            background: var(--bg-th);
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 8px 6px;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        table.grid-table tbody tr:hover {
+            background: var(--row-hover);
+        }
+
+        table.grid-table tbody td {
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            padding: 0;
+            height: 34px;
+        }
+
+        .cell-input, .cell-select {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            color: var(--text-main);
+            font-size: 12px;
+            padding: 0 7px;
+            outline: none;
+        }
+
+        .cell-select {
+            font-family: monospace;
+            font-size: 11.5px;
+            font-weight: 700;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .cell-select option {
+            background: var(--bg-card);
+            color: var(--text-main);
+        }
+
+        .cell-input.mono {
+            font-family: monospace;
+            font-size: 11.5px;
+            text-align: center;
+        }
+
+        .cell-input:focus, .cell-select:focus {
+            background: var(--bg-card);
+            box-shadow: inset 0 0 0 2px var(--accent);
+        }
+
+        .cat-badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .cat-embalada { background: #dcfce7; color: #166534; }
+        .cat-retrabalhada { background: #fef3c7; color: #92400e; }
+        .cat-sorter { background: #dbeafe; color: #1e40af; }
+        .cat-alerta { background: #fee2e2; color: #991b1b; }
+        .cat-outros { background: #e2e8f0; color: #334155; }
+
+        .pend-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .pend-sim { background: #fee2e2; color: #991b1b; }
+        .pend-nao { background: #dcfce7; color: #166534; }
+
+        .row-num {
+            text-align: center;
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg-subtle);
+            width: 42px;
+        }
+
+        .row-actions {
+            text-align: center;
+            white-space: nowrap;
+            padding: 0 4px !important;
+            width: 68px;
+        }
+
+        .icon-btn {
+            background: var(--bg-subtle);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            border-radius: 3px;
+            padding: 2px 6px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .icon-btn.del {
+            color: var(--danger);
+        }
+
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+        }
+
+        .modal-backdrop.open {
+            display: flex;
+        }
+
+        .modal-box {
+            width: 100%;
+            max-width: 680px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+        }
+
+        .modal-head {
+            background: var(--bg-subtle);
+            border-bottom: 1px solid var(--border-color);
+            padding: 11px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .modal-body {
+            padding: 12px 14px;
+        }
+
+        .paste-textarea {
+            width: 100%;
+            min-height: 170px;
+            background: var(--bg-subtle);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
+        .modal-foot {
+            background: var(--bg-subtle);
+            border-top: 1px solid var(--border-color);
+            padding: 10px 14px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .aviso-topo {
+            background: var(--bg-subtle);
+            border-bottom: 1px solid var(--border-color);
+            padding: 6px 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div>
+            <h1 class="topbar-title">Fechamento 2026 - Controle de Caixas</h1>
+            <div class="topbar-sub">Ordem • Caixa • Produto • Cor • Grade • Situacao • Categoria • Fabrica (1-8) • Lote • Box</div>
+        </div>
+        <div class="toolbar-group">
+            <select id="select-tema" class="select-ctrl">
+                <option value="light">Tema Claro</option>
+                <option value="erp">Estilo ERP</option>
+                <option value="dark">Modo Escuro</option>
+            </select>
+            <button type="button" id="btn-exportar" class="btn btn-ghost">Exportar CSV</button>
+            <button type="button" id="btn-limpar" class="btn btn-danger">Limpar</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- INDICADORES DE FABRICAS PENDENTES (1 A 8) -->
+        <section class="fab-panel">
+            <div class="fab-header">
+                <span id="resumo-fabricas-pendentes">Pendencias por Fabrica (1 a 8)</span>
+                <button type="button" id="btn-limpar-filtro-fab" class="icon-btn" style="display:none;">Mostrar Todas as Fabricas</button>
+            </div>
+            <div id="grid-fabricas" class="fab-grid"></div>
+        </section>
+
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Registros / Caixas</div>
+                <div id="kpi-total" class="kpi-val">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Ordens Unicas</div>
+                <div id="kpi-ordens" class="kpi-val">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Total Pendencias</div>
+                <div id="kpi-pendencias" class="kpi-val">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Fabricas com Pendencia</div>
+                <div id="kpi-fabs-pend" class="kpi-val">0 / 8</div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <button type="button" id="btn-abrir-modal" class="btn btn-primary">
+                        Colar do Sistema / Excel
+                    </button>
+                    <button type="button" id="btn-nova-linha" class="btn btn-success">
+                        + Nova Linha
+                    </button>
+                    <button type="button" id="btn-exemplo" class="btn btn-ghost">
+                        Carregar Exemplo
+                    </button>
+                </div>
+
+                <div class="toolbar-group">
+                    <input type="text" id="campo-busca" class="input-ctrl" placeholder="Buscar ordem, caixa, produto, lote, box...">
+                    <select id="filtro-fabrica" class="select-ctrl">
+                        <option value="TODAS">Todas as fabricas</option>
+                        <option value="1">Fabrica 1</option>
+                        <option value="2">Fabrica 2</option>
+                        <option value="3">Fabrica 3</option>
+                        <option value="4">Fabrica 4</option>
+                        <option value="5">Fabrica 5</option>
+                        <option value="6">Fabrica 6</option>
+                        <option value="7">Fabrica 7</option>
+                        <option value="8">Fabrica 8</option>
+                        <option value="SEM">Sem fabrica (1-8)</option>
+                    </select>
+                    <select id="filtro-status" class="select-ctrl">
+                        <option value="TODOS">Todos os status</option>
+                        <option value="PENDENTE">Apenas Pendentes</option>
+                        <option value="OK">Concluidos / Embalada</option>
+                    </select>
+                    <select id="filtro-categoria" class="select-ctrl">
+                        <option value="TODAS">Todas categorias</option>
+                        <option value="Embalada">Embalada</option>
+                        <option value="Retrabalhada">Retrabalhada</option>
+                        <option value="Sorter">Sorter</option>
+                        <option value="Alerta / Caixa X">Alerta / Caixa X</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="aviso-topo">
+                <span id="msg-status">Pronto. Clique em "Colar do Sistema / Excel" para colar o texto copiado.</span>
+                <span id="contador-salvo">Salvo localmente</span>
+            </div>
+
+            <div class="table-wrap">
+                <table class="grid-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Ordem</th>
+                            <th>Caixa</th>
+                            <th>Produto</th>
+                            <th>Cor</th>
+                            <th>Grade</th>
+                            <th>Situacao</th>
+                            <th>Categoria</th>
+                            <th>Fabrica</th>
+                            <th>Pendencia</th>
+                            <th>Lote</th>
+                            <th>Box</th>
+                            <th>Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-dados"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL PARA COLAR TEXTO COPIADO DO SISTEMA / EXCEL -->
+    <div id="modal-colar" class="modal-backdrop">
+        <div class="modal-box">
+            <div class="modal-head">
+                <span>Colar Dados do Sistema / Excel</span>
+                <button type="button" id="btn-fechar-modal" class="icon-btn">X</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0 0 8px 0; font-size:12px; color:var(--text-muted);">
+                    Cole abaixo o texto copiado do sistema ou da planilha. O sistema separa cada ordem, identifica a fabrica (1 a 8) quando mencionada e classifica as pendencias.
+                </p>
+                <textarea id="txt-colar" class="paste-textarea" placeholder="Cole aqui o conteudo copiado..."></textarea>
+                <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:14px; font-size:12px;">
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="modo-insercao" value="append" checked>
+                        Adicionar nas linhas existentes
+                    </label>
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="modo-insercao" value="replace">
+                        Substituir tudo
+                    </label>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <span id="txt-previa" style="font-size:12px; font-weight:700; color:var(--text-muted);">0 registros identificados</span>
+                <div class="toolbar-group">
+                    <button type="button" id="btn-cancelar-modal" class="btn btn-ghost">Cancelar</button>
+                    <button type="button" id="btn-processar-modal" class="btn btn-primary">Processar e Preencher</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var STORAGE_KEY = 'fechamento_2026_sistema_v3';
+            var linhas = [];
+
+            var EXEMPLO_TEXTO =
+                '11123132\t00478902440978608109\t12619\tBW757\t02007\tEmbalada\t797641\t1634183\t26/11/2026 11:00\t26/11/2026 12:12 ' +
+                '11123135\t00478902440987786447\t05320\t09064\t08543\tEmbalada - Embalagem 8\t797641\t1634084\t26/11/2026 00:24\t' +
+                '526371124\t00478902440959754894\t38210\tCG487\t50247\tRetrabalhada - Fab. 03\t354827\t1617454\t26/11/2026 08:10\t' +
+                '11123022\t00478902440992290366\t12555\tBS033\t09952\tSorter - Saldo insuficiente - Fab 05\t803354\t1636589\t26/11/2026 09:05\t';
+
+            function linhaVazia() {
+                return {
+                    ordem: '',
+                    caixa: '',
+                    produto: '',
+                    cor: '',
+                    grade: '',
+                    situacao: '',
+                    fabrica: '',
+                    lote: '',
+                    box: ''
+                };
+            }
+
+            function ehVazia(r) {
+                return !(r.ordem || r.caixa || r.produto || r.cor || r.grade || r.situacao || r.fabrica || r.lote || r.box);
+            }
+
+            function categorizarSituacao(sit) {
+                var s = String(sit || '').trim().toLowerCase();
+                if (!s) return 'Outros';
+                if (s.indexOf('retrabalh') !== -1) return 'Retrabalhada';
+                if (s.indexOf('embalad') !== -1) return 'Embalada';
+                if (s.indexOf('sorter') !== -1) return 'Sorter';
+                if (s.indexOf('caixa x') !== -1 || s.indexOf('insuficiente') !== -1 || s.indexOf('falta') !== -1 || s.indexOf('avaria') !== -1) {
+                    return 'Alerta / Caixa X';
+                }
+                return 'Outros';
+            }
+
+            function detectarFabrica(textoSituacao, fabricaInformada) {
+                var fNum = String(fabricaInformada || '').trim();
+                if (/^[1-8]$/.test(fNum)) return fNum;
+
+                var s = String(textoSituacao || '').toLowerCase();
+                var m = s.match(/(?:f[aá]b(?:rica)?\.?\s*|embalagem\s*|linha\s*|setor\s*)0?([1-8])\b/);
+                if (m && m[1]) return m[1];
+                return '';
+            }
+
+            function ehPendente(r) {
+                if (ehVazia(r)) return false;
+                var sit = String(r.situacao || '').trim().toLowerCase();
+                var cat = categorizarSituacao(r.situacao);
+                if (!sit) return true;
+                // "Embalada" pura sem retrabalho/falta/saldo insuficiente conta como concluida
+                if (cat === 'Embalada' && sit.indexOf('retrabalh') === -1 && sit.indexOf('falta') === -1 && sit.indexOf('insuficiente') === -1) {
+                    return false;
+                }
+                return true;
+            }
+
+            function classeCategoria(cat) {
+                if (cat === 'Embalada') return 'cat-badge cat-embalada';
+                if (cat === 'Retrabalhada') return 'cat-badge cat-retrabalhada';
+                if (cat === 'Sorter') return 'cat-badge cat-sorter';
+                if (cat === 'Alerta / Caixa X') return 'cat-badge cat-alerta';
+                return 'cat-badge cat-outros';
+            }
+
+            function setStatus(msg) {
+                var el = document.getElementById('msg-status');
+                if (el) el.textContent = msg;
+            }
+
+            function salvar() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        linhas: linhas,
+                        tema: document.getElementById('select-tema').value
+                    }));
+                    var c = document.getElementById('contador-salvo');
+                    if (c) c.textContent = 'Salvo ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                } catch (e) {}
+            }
+
+            function carregar() {
+                try {
+                    var raw = localStorage.getItem(STORAGE_KEY);
+                    if (raw) {
+                        var obj = JSON.parse(raw);
+                        if (obj.tema) aplicarTema(obj.tema);
+                        if (Array.isArray(obj.linhas) && obj.linhas.length > 0) {
+                            linhas = obj.linhas.map(function (item) {
+                                var sit = String(item.situacao || '');
+                                return {
+                                    ordem: String(item.ordem || ''),
+                                    caixa: String(item.caixa || ''),
+                                    produto: String(item.produto || ''),
+                                    cor: String(item.cor || ''),
+                                    grade: String(item.grade || ''),
+                                    situacao: sit,
+                                    fabrica: detectarFabrica(sit, item.fabrica),
+                                    lote: String(item.lote || ''),
+                                    box: String(item.box || '')
+                                };
+                            });
+                            return;
+                        }
+                    }
+                } catch (e) {}
+                linhas = parsearTextoColado(EXEMPLO_TEXTO);
+                if (linhas.length === 0) linhas = [linhaVazia()];
+            }
+
+            function aplicarTema(tema) {
+                document.body.classList.remove('theme-dark', 'theme-erp');
+                if (tema === 'dark') document.body.classList.add('theme-dark');
+                if (tema === 'erp') document.body.classList.add('theme-erp');
+                var sel = document.getElementById('select-tema');
+                if (sel) sel.value = tema;
+            }
+
+            function extrairTokens(trecho) {
+                var limpo = String(trecho || '').replace(/\r/g, ' ').replace(/\n/g, ' ').replace(/\t/g, ' ').trim();
+                if (!limpo) return [];
+                var marcado = limpo.replace(/(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})/g, '$1__HORA__$2');
+                return marcado.split(/\s+/).filter(Boolean).map(function (p) {
+                    return p.replace('__HORA__', ' ');
+                });
+            }
+
+            function parsearTextoColado(texto) {
+                var bruto = String(texto || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+                if (!bruto) return [];
+
+                var normalizado = bruto.replace(/\t+/g, ' ');
+                var padraoInicioRegistro = /(?:^|\s)(\d{7,9})(?=\s+\d{12,})/g;
+                var indices = [];
+                var match;
+
+                while ((match = padraoInicioRegistro.exec(normalizado)) !== null) {
+                    var inicioOrdem = match.index + (match[0].length - match[1].length);
+                    indices.push(inicioOrdem);
+                }
+
+                var blocos = [];
+                if (indices.length > 0) {
+                    for (var i = 0; i < indices.length; i++) {
+                        var ini = indices[i];
+                        var fim = (i + 1 < indices.length) ? indices[i + 1] : normalizado.length;
+                        var pedaco = normalizado.slice(ini, fim).trim();
+                        if (pedaco) blocos.push(pedaco);
+                    }
+                } else {
+                    var linhasBrutas = normalizado.split('\n');
+                    for (var l = 0; l < linhasBrutas.length; l++) {
+                        var lb = linhasBrutas[l].trim();
+                        if (!lb) continue;
+                        var low = lb.toLowerCase();
+                        if (low.indexOf('ordem') === 0 && low.indexOf('caixa') !== -1) continue;
+                        blocos.push(lb);
+                    }
+                }
+
+                var registros = [];
+                for (var b = 0; b < blocos.length; b++) {
+                    var tokens = extrairTokens(blocos[b]);
+                    if (tokens.length < 2) continue;
+                    if (String(tokens[0]).toLowerCase() === 'ordem') continue;
+
+                    var ordem = tokens[0] || '';
+                    var caixa = tokens[1] || '';
+                    var produto = tokens[2] || '';
+                    var cor = tokens[3] || '';
+                    var grade = tokens[4] || '';
+
+                    var resto = tokens.slice(5);
+                    var lote = '';
+                    var box = '';
+                    var situacaoParts = [];
+                    var numsFinais = [];
+                    var cutIndex = resto.length;
+
+                    for (var k = resto.length - 1; k >= 0; k--) {
+                        var tk = resto[k];
+                        if (/^\d{2}\/\d{2}\/\d{4}(\s+\d{2}:\d{2})?$/.test(tk)) {
+                            cutIndex = k;
+                            continue;
+                        }
+                        if (/^\d{5,9}$/.test(tk) && numsFinais.length < 2) {
+                            numsFinais.unshift(tk);
+                            cutIndex = k;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if (numsFinais.length >= 2) {
+                        lote = numsFinais[0];
+                        box = numsFinais[1];
+                        situacaoParts = resto.slice(0, cutIndex);
+                    } else if (numsFinais.length === 1) {
+                        box = numsFinais[0];
+                        situacaoParts = resto.slice(0, cutIndex);
+                    } else {
+                        situacaoParts = resto;
+                    }
+
+                    var situacao = situacaoParts.join(' ').trim();
+                    var fabrica = detectarFabrica(situacao, '');
+
+                    var reg = {
+                        ordem: ordem,
+                        caixa: caixa,
+                        produto: produto,
+                        cor: cor,
+                        grade: grade,
+                        situacao: situacao,
+                        fabrica: fabrica,
+                        lote: lote,
+                        box: box
+                    };
+
+                    if (!ehVazia(reg)) {
+                        registros.push(reg);
+                    }
+                }
+
+                return registros;
+            }
+
+            function renderizarFabricasPendentes() {
+                var contagens = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
+                var totaisFab = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
+                var fabsComPendencia = [];
+
+                for (var i = 0; i < linhas.length; i++) {
+                    var r = linhas[i];
+                    if (ehVazia(r)) continue;
+                    var f = Number(r.fabrica);
+                    if (f >= 1 && f <= 8) {
+                        totaisFab[f]++;
+                        if (ehPendente(r)) {
+                            contagens[f]++;
+                        }
+                    }
+                }
+
+                var fabFiltroAtual = document.getElementById('filtro-fabrica').value;
+                var grid = document.getElementById('grid-fabricas');
+                var html = '';
+
+                for (var p = 1; p <= 8; p++) {
+                    var pend = contagens[p];
+                    var tot = totaisFab[p];
+                    if (pend > 0) fabsComPendencia.push('Fab. ' + p + ' (' + pend + ')');
+
+                    var cls = 'fab-card';
+                    if (pend > 0) cls += ' pendente';
+                    if (fabFiltroAtual === String(p)) cls += ' selecionada';
+
+                    html += '<button type="button" class="' + cls + '" data-fab-card="' + p + '">' +
+                        '<div class="fab-top"><span>FABRICA ' + p + '</span><span class="fab-dot"></span></div>' +
+                        '<div class="fab-num">' + pend + '</div>' +
+                        '<div class="fab-sub">' + (pend > 0 ? 'pendente(s)' : 'sem pendencia') + ' • ' + tot + ' reg.</div>' +
+                        '</button>';
+                }
+
+                grid.innerHTML = html;
+
+                var resumoEl = document.getElementById('resumo-fabricas-pendentes');
+                if (fabsComPendencia.length > 0) {
+                    resumoEl.innerHTML = 'Fabricas com pendencia: <span style="color:#dc2626;">' + fabsComPendencia.join(' • ') + '</span>';
+                } else {
+                    resumoEl.textContent = 'Pendencias por Fabrica (1 a 8) — Nenhuma fabrica pendente no momento';
+                }
+
+                var btnLimparFab = document.getElementById('btn-limpar-filtro-fab');
+                btnLimparFab.style.display = (fabFiltroAtual !== 'TODAS') ? 'inline-block' : 'none';
+            }
+
+            function atualizarKPIs() {
+                var validas = linhas.filter(function (r) { return !ehVazia(r); });
+                var ordensMap = {};
+                var totalPend = 0;
+                var fabsSet = {};
+
+                for (var i = 0; i < validas.length; i++) {
+                    var r = validas[i];
+                    if (r.ordem) ordensMap[r.ordem] = true;
+                    if (ehPendente(r)) {
+                        totalPend++;
+                        var f = Number(r.fabrica);
+                        if (f >= 1 && f <= 8) fabsSet[f] = true;
+                    }
+                }
+
+                document.getElementById('kpi-total').textContent = validas.length;
+                document.getElementById('kpi-ordens').textContent = Object.keys(ordensMap).length;
+                document.getElementById('kpi-pendencias').textContent = totalPend;
+                document.getElementById('kpi-fabs-pend').textContent = Object.keys(fabsSet).length + ' / 8';
+            }
+
+            function renderizarTabela() {
+                var busca = String(document.getElementById('campo-busca').value || '').trim().toLowerCase();
+                var filtroFab = document.getElementById('filtro-fabrica').value;
+                var filtroStatus = document.getElementById('filtro-status').value;
+                var filtroCat = document.getElementById('filtro-categoria').value;
+                var tbody = document.getElementById('tbody-dados');
+                var html = '';
+
+                for (var i = 0; i < linhas.length; i++) {
+                    var r = linhas[i];
+                    var cat = categorizarSituacao(r.situacao);
+                    var pend = ehPendente(r);
+                    var fabVal = String(r.fabrica || '');
+
+                    if (filtroFab === 'SEM') {
+                        if (fabVal !== '') continue;
+                    } else if (filtroFab !== 'TODAS') {
+                        if (fabVal !== filtroFab) continue;
+                    }
+
+                    if (filtroStatus === 'PENDENTE' && !pend) continue;
+                    if (filtroStatus === 'OK' && (pend || ehVazia(r))) continue;
+                    if (filtroCat !== 'TODAS' && cat !== filtroCat) continue;
+
+                    if (busca) {
+                        var linhaTexto = (r.ordem + ' ' + r.caixa + ' ' + r.produto + ' ' + r.cor + ' ' + r.grade + ' ' + r.situacao + ' ' + cat + ' fabrica ' + fabVal + ' ' + r.lote + ' ' + r.box).toLowerCase();
+                        if (linhaTexto.indexOf(busca) === -1) continue;
+                    }
+
+                    var opcoesFab = '<option value=""' + (fabVal === '' ? ' selected' : '') + '>--</option>';
+                    for (var f = 1; f <= 8; f++) {
+                        opcoesFab += '<option value="' + f + '"' + (fabVal === String(f) ? ' selected' : '') + '>Fab. ' + f + '</option>';
+                    }
+
+                    var pendBadge = ehVazia(r)
+                        ? '<span class="cat-badge cat-outros">-</span>'
+                        : (pend ? '<span class="pend-tag pend-sim">PENDENTE</span>' : '<span class="pend-tag pend-nao">OK</span>');
+
+                    html += '<tr>';
+                    html += '<td class="row-num">' + (i + 1) + '</td>';
+                    html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="ordem" value="' + escaparAttr(r.ordem) + '"></td>';
+                    html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="caixa" value="' + escaparAttr(r.caixa) + '"></td>';
+                    html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="produto" value="' + escaparAttr(r.produto) + '"></td>';
+                    html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="cor" value="' + escaparAttr(r.cor) + '"></td>';
+                    html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="grade" value="' + escaparAttr(r.grade) + '"></td>';
+                    html += '<td><input type="text" class="cell-input" data-idx="' + i + '" data-campo="situacao" value="' + escaparAttr(r.situacao) + '"></td>';
+                    html += '<td style="text-align:center; padding:0 6px;"><span class="' + classeCategoria(cat) + '">' + cat + '</span></td>';
+                    html += '<td><select class="cell-select" data-idx="' + i + '" data-campo="fabrica">' + opcoesFab + '</select></td>';
+                    html += '<td style="text-align:center; padding:0 6px;">' + pendBadge + '</td>';
+                    html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="lote" value="' + escaparAttr(r.lote) + '"></td>';
+                    html += '<td><input type="text" class="cell-input mono" data-idx="' + i + '" data-campo="box" value="' + escaparAttr(r.box) + '"></td>';
+                    html += '<td class="row-actions">' +
+                        '<button type="button" class="icon-btn" data-dup="' + i + '" title="Duplicar">+</button> ' +
+                        '<button type="button" class="icon-btn del" data-del="' + i + '" title="Excluir">x</button>' +
+                        '</td>';
+                    html += '</tr>';
+                }
+
+                if (!html) {
+                    html = '<tr><td colspan="13" style="padding:18px; text-align:center; color:var(--text-muted); font-size:12px;">Nenhuma linha encontrada para os filtros atuais.</td></tr>';
+                }
+
+                tbody.innerHTML = html;
+            }
+
+            function escaparAttr(v) {
+                return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            }
+
+            function renderizarTudo() {
+                renderizarFabricasPendentes();
+                atualizarKPIs();
+                renderizarTabela();
+            }
+
+            // Clique nos cartoes de fabrica (1 a 8) para filtrar
+            document.getElementById('grid-fabricas').addEventListener('click', function (ev) {
+                var card = ev.target.closest('button[data-fab-card]');
+                if (!card) return;
+                var f = card.getAttribute('data-fab-card');
+                var selFab = document.getElementById('filtro-fabrica');
+                if (selFab.value === f) {
+                    selFab.value = 'TODAS';
+                } else {
+                    selFab.value = f;
+                }
+                renderizarTudo();
+            });
+
+            document.getElementById('btn-limpar-filtro-fab').addEventListener('click', function () {
+                document.getElementById('filtro-fabrica').value = 'TODAS';
+                renderizarTudo();
+            });
+
+            // Delegacao de eventos no tbody
+            var tbodyEl = document.getElementById('tbody-dados');
+            tbodyEl.addEventListener('input', function (ev) {
+                var target = ev.target;
+                if (!target || !target.classList.contains('cell-input')) return;
+                var idx = Number(target.getAttribute('data-idx'));
+                var campo = target.getAttribute('data-campo');
+                if (linhas[idx] && campo) {
+                    linhas[idx][campo] = target.value;
+                    if (campo === 'situacao' && !linhas[idx].fabrica) {
+                        var detectada = detectarFabrica(target.value, '');
+                        if (detectada) linhas[idx].fabrica = detectada;
+                    }
+                    salvar();
+                    renderizarFabricasPendentes();
+                    atualizarKPIs();
+                }
+            });
+
+            tbodyEl.addEventListener('change', function (ev) {
+                var target = ev.target;
+                if (!target) return;
+                var idx = Number(target.getAttribute('data-idx'));
+                var campo = target.getAttribute('data-campo');
+                if (linhas[idx] && campo) {
+                    linhas[idx][campo] = target.value;
+                    if (campo === 'situacao' && !linhas[idx].fabrica) {
+                        var detectada = detectarFabrica(target.value, '');
+                        if (detectada) linhas[idx].fabrica = detectada;
+                    }
+                    salvar();
+                    renderizarTudo();
+                }
+            });
+
+            tbodyEl.addEventListener('click', function (ev) {
+                var btnDup = ev.target.closest('button[data-dup]');
+                if (btnDup) {
+                    var iDup = Number(btnDup.getAttribute('data-dup'));
+                    linhas.splice(iDup + 1, 0, Object.assign({}, linhas[iDup]));
+                    salvar();
+                    renderizarTudo();
+                    setStatus('Linha duplicada.');
+                    return;
+                }
+
+                var btnDel = ev.target.closest('button[data-del]');
+                if (btnDel) {
+                    var iDel = Number(btnDel.getAttribute('data-del'));
+                    linhas.splice(iDel, 1);
+                    if (linhas.length === 0) linhas.push(linhaVazia());
+                    salvar();
+                    renderizarTudo();
+                    setStatus('Linha removida.');
+                }
+            });
+
+            // Controle do Modal de Colagem
+            var modalEl = document.getElementById('modal-colar');
+            var txtColarEl = document.getElementById('txt-colar');
+
+            function atualizarPrevia() {
+                var qtd = parsearTextoColado(txtColarEl.value).length;
+                document.getElementById('txt-previa').textContent = qtd + (qtd === 1 ? ' registro identificado' : ' registros identificados');
+            }
+
+            function abrirModal() {
+                txtColarEl.value = '';
+                atualizarPrevia();
+                modalEl.classList.add('open');
+                setTimeout(function () {
+                    try { txtColarEl.focus(); } catch (e) {}
+                }, 60);
+            }
+
+            function fecharModal() {
+                modalEl.classList.remove('open');
+            }
+
+            document.getElementById('btn-abrir-modal').addEventListener('click', abrirModal);
+            document.getElementById('btn-fechar-modal').addEventListener('click', fecharModal);
+            document.getElementById('btn-cancelar-modal').addEventListener('click', fecharModal);
+
+            modalEl.addEventListener('click', function (ev) {
+                if (ev.target === modalEl) fecharModal();
+            });
+
+            txtColarEl.addEventListener('input', atualizarPrevia);
+            txtColarEl.addEventListener('paste', function () {
+                setTimeout(atualizarPrevia, 20);
+            });
+
+            document.getElementById('btn-processar-modal').addEventListener('click', function () {
+                var parsed = parsearTextoColado(txtColarEl.value);
+                if (parsed.length === 0) {
+                    setStatus('Nenhum registro valido encontrado no texto colado.');
+                    return;
+                }
+
+                var modoChecked = document.querySelector('input[name="modo-insercao"]:checked');
+                var modo = modoChecked ? modoChecked.value : 'append';
+
+                if (modo === 'replace') {
+                    linhas = parsed;
+                } else {
+                    while (linhas.length > 0 && ehVazia(linhas[linhas.length - 1])) {
+                        linhas.pop();
+                    }
+                    for (var i = 0; i < parsed.length; i++) {
+                        linhas.push(parsed[i]);
+                    }
+                }
+
+                salvar();
+                renderizarTudo();
+                fecharModal();
+                setStatus(parsed.length + ' registro(s) preenchido(s) automaticamente.');
+            });
+
+            document.getElementById('btn-nova-linha').addEventListener('click', function () {
+                linhas.push(linhaVazia());
+                salvar();
+                renderizarTudo();
+                setStatus('Nova linha adicionada.');
+            });
+
+            document.getElementById('btn-exemplo').addEventListener('click', function () {
+                var ex = parsearTextoColado(EXEMPLO_TEXTO);
+                if (ex.length > 0) {
+                    linhas = ex;
+                    salvar();
+                    renderizarTudo();
+                    setStatus('Exemplo carregado com ' + ex.length + ' registros.');
+                }
+            });
+
+            document.getElementById('btn-limpar').addEventListener('click', function () {
+                linhas = [linhaVazia()];
+                salvar();
+                renderizarTudo();
+                setStatus('Grade limpa.');
+            });
+
+            document.getElementById('btn-exportar').addEventListener('click', function () {
+                var cab = ['Ordem', 'Caixa', 'Produto', 'Cor', 'Grade', 'Situacao', 'Categoria', 'Fabrica', 'Pendencia', 'Lote', 'Box'];
+                var out = [cab.join(';')];
+                for (var i = 0; i < linhas.length; i++) {
+                    var r = linhas[i];
+                    if (ehVazia(r)) continue;
+                    var cols = [
+                        r.ordem, r.caixa, r.produto, r.cor, r.grade,
+                        r.situacao, categorizarSituacao(r.situacao),
+                        r.fabrica ? 'Fabrica ' + r.fabrica : '',
+                        ehPendente(r) ? 'PENDENTE' : 'OK',
+                        r.lote, r.box
+                    ].map(function (v) {
+                        return '"' + String(v || '').replace(/"/g, '""') + '"';
+                    });
+                    out.push(cols.join(';'));
+                }
+                var blob = new Blob(['\uFEFF' + out.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'fechamento-2026.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                setStatus('CSV exportado.');
+            });
+
+            document.getElementById('campo-busca').addEventListener('input', renderizarTabela);
+            document.getElementById('filtro-fabrica').addEventListener('change', renderizarTudo);
+            document.getElementById('filtro-status').addEventListener('change', renderizarTabela);
+            document.getElementById('filtro-categoria').addEventListener('change', renderizarTabela);
+            document.getElementById('select-tema').addEventListener('change', function () {
+                aplicarTema(this.value);
+                salvar();
+            });
+
+            carregar();
+            renderizarTudo();
+        })();
+    </script>
+</body>
+</html>
